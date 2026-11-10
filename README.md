@@ -3,7 +3,7 @@
 404-FOUND 팀의 스마트 도서관 백엔드 서버.
 
 ## Tech Stack
-Java 17 · Spring Boot 4 · Spring Data JPA · Spring Security · MySQL · Flyway · Gradle
+Java 17 · Spring Boot 4 · Spring Data JPA · Spring Security · PostgreSQL · Flyway · Gradle
 
 ## 시작하기
 ```bash

@@ -5,8 +5,8 @@ spring:
     # 루트의 .env 파일(KEY=VALUE)을 읽어 ${...} 에 사용 (없어도 무시)
     import: optional:file:.env[.properties]
   datasource:
-    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:smart_library}?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
-    username: ${DB_USERNAME:root}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:smart_library}
+    username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:}
   jpa:
     open-in-view: false
