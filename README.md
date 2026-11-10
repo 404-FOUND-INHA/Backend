@@ -3,11 +3,12 @@
 404-FOUND 팀의 스마트 도서관 백엔드 서버.
 
 ## Tech Stack
-Java 17 · Spring Boot 4 · Spring Data JPA · Spring Security · MySQL · Flyway · Gradle
+Java 17 · Spring Boot 4 · Spring Data JPA · Spring Security · PostgreSQL · Flyway · Gradle
 
 ## 시작하기
 ```bash
 cp .env.example .env     # DB 정보 등 값 채우기
+docker compose up -d      # 로컬 PostgreSQL 실행 (.env 의 DB_* 값 사용)
 ./gradlew bootRun
 ```
 스키마 변경은 `src/main/resources/db/migration` 의 Flyway 파일(`V{n}__설명.sql`)로만 한다.
