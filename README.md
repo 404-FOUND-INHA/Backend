@@ -23,20 +23,18 @@ src/main/java/com/__found/smart_library/
 ---
 
 ## 브랜치 전략
-`main` / `develop` / 작업 브랜치 구성 (간소화된 Git Flow).
+`main` + 작업 브랜치 구성 (GitHub Flow).
 
 | 브랜치 | 설명 |
 | --- | --- |
-| `main` | 배포 가능한 안정 버전. 직접 push 금지 |
-| `develop` | 개발 통합 브랜치. 작업 브랜치는 여기서 분기해 여기로 PR |
+| `main` | 항상 배포 가능한 안정 버전. 직접 push 금지, PR로만 머지 |
 | `feat/{이슈번호}-{설명}` | 기능 개발 (예: `feat/12-book-search`) |
 | `fix/{이슈번호}-{설명}` | 버그 수정 |
 | `refactor/…`, `docs/…`, `chore/…` | 그 외 작업 |
-| `hotfix/{설명}` | 운영 긴급 수정 (`main`에서 분기 → `main`, `develop` 둘 다 머지) |
 
 규칙
-- 작업 브랜치 → `develop` PR은 **최소 1명 approve** 후 머지 (Squash and merge 권장)
-- `develop` → `main` 은 릴리스 시점에만 머지
+- 작업 브랜치는 `main`에서 분기하고, 작업이 끝나면 `main`으로 PR
+- PR은 **최소 1명 approve** 후 머지 (Squash and merge 권장)
 - 머지된 작업 브랜치는 삭제
 
 ## 이슈 컨벤션
