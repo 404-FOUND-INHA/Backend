@@ -8,5 +8,7 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long> {
 
     Optional<AppUser> findByEmail(String email);
 
+    boolean existsByIdAndStatus(Long id, com.__found.smart_library.domain.user.entity.UserStatus status);
+
     boolean existsByEmail(String email);
 }

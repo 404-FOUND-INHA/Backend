@@ -8,7 +8,7 @@ import java.util.Base64;
 import java.util.HexFormat;
 
 /**
- * Refresh Token 생성과 해시. DB(auth_session)에는 해시만 저장한다.
+ * Refresh Token 생성과 해시. Redis 에는 해시만 저장한다.
  */
 public final class TokenHasher {
 

@@ -10,7 +10,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:?.env 에 DB_PASSWORD 를 설정하세요}
       TZ: Asia/Seoul
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -19,5 +19,25 @@ services:
       timeout: 3s
       retries: 10
 
+  # 로그인 세션·Refresh Token 저장소. REDIS_PASSWORD 가 비어 있으면 비밀번호 없이 뜬다(로컬 전용).
+  redis:
+    image: redis:7-alpine
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    command:
+      - sh
+      - -c
+      - exec redis-server --appendonly yes $${REDIS_PASSWORD:+--requirepass "$$REDIS_PASSWORD"}
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli --no-auth-warning $${REDIS_PASSWORD:+-a \"$$REDIS_PASSWORD\"} ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
 volumes:
   postgres-data:
+  redis-data:
