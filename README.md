@@ -13,6 +13,31 @@ docker compose up -d      # 로컬 PostgreSQL 실행 (.env 의 DB_* 값 사용)
 ```
 스키마 변경은 `src/main/resources/db/migration` 의 Flyway 파일(`V{n}__설명.sql`)로만 한다.
 
+`.env` 의 `JWT_SECRET` 은 32바이트 이상의 임의 문자열로 바꾼다 (`openssl rand -base64 48`). 비어 있거나 짧으면 앱이 기동하지 않는다.
+
+### 개발용 시드 데이터
+`.env` 에 `spring.profiles.active=dev` 가 있으면 기동 시 샘플 서가·도서·계정이 들어간다 (`src/main/resources/db/seed/`).
+
+| 계정 | 비밀번호 | 권한 |
+| --- | --- | --- |
+| `librarian@example.com` | `Password1234!` | 사서 (LIBRARIAN) |
+| `worker@example.com` | `Password1234!` | 근로생 (STUDENT_WORKER) |
+
+## API
+모든 응답은 `{ "success": true, "data": ... }`, 에러는 `{ "code", "message", "errors" }` 형식이다.
+로그인 후 받은 `accessToken` 을 `Authorization: Bearer {token}` 으로 보낸다.
+
+| Method | Endpoint | 권한 |
+| --- | --- | --- |
+| POST | `/api/auth/signup` · `/login` · `/refresh` | 공개 |
+| POST | `/api/auth/logout` | 로그인 |
+| GET · DELETE | `/api/users/me` | 로그인 |
+| GET | `/api/shelves` · `/{id}` · `/{id}/books` · `/api/maps` | 로그인 |
+| PUT | `/api/shelves/{id}` | 사서 |
+| GET | `/api/books` · `/{id}` · `/{id}/histories` | 로그인 |
+| POST | `/api/books` | 사서 |
+| PATCH | `/api/books/{id}` | 로그인 |
+
 ## 프로젝트 구조
 ```
 src/main/java/com/__found/smart_library/
