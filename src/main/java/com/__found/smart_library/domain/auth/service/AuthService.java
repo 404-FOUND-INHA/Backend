@@ -75,7 +75,9 @@ public class AuthService {
             throw new BusinessException(ErrorCode.INVALID_REFRESH_TOKEN);
         }
         String newRefreshToken = TokenHasher.newRefreshToken();
-        sessionStore.rotate(sid, userId, TokenHasher.hash(newRefreshToken), tokenProvider.refreshTokenTtl());
+        if (!sessionStore.rotate(sid, userId, TokenHasher.hash(newRefreshToken), tokenProvider.refreshTokenTtl())) {
+            throw new BusinessException(ErrorCode.INVALID_REFRESH_TOKEN);
+        }
         return tokenResponse(user, sid, newRefreshToken);
     }
 

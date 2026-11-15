@@ -7,6 +7,7 @@ import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Component;
 
 /**
@@ -26,6 +27,19 @@ public class AuthSessionStore {
     private static final String REFRESH = "auth:refresh:";
     private static final String USER_SESSIONS = "auth:user-sessions:";
 
+    /**
+     * 세션이 아직 있고 같은 사용자의 것일 때만 Refresh Token 을 교체한다(존재 확인과 갱신을 한 번에 처리).
+     * 그 사이 로그아웃으로 삭제된 세션은 되살리지 않는다. 교체했으면 1, 거부했으면 0.
+     */
+    private static final DefaultRedisScript<Long> ROTATE_SCRIPT = new DefaultRedisScript<>(
+            """
+            if redis.call('GET', KEYS[1]) ~= ARGV[1] then return 0 end
+            redis.call('EXPIRE', KEYS[1], ARGV[3])
+            redis.call('SET', KEYS[3], ARGV[2], 'EX', ARGV[3])
+            redis.call('EXPIRE', KEYS[2], ARGV[3])
+            return 1
+            """, Long.class);
+
     private final StringRedisTemplate redis;
 
     /** 새 세션을 만들고 sid 를 돌려준다. */
@@ -35,9 +49,17 @@ public class AuthSessionStore {
         return sid;
     }
 
-    /** 같은 세션의 Refresh Token 을 새 것으로 교체하고 만료 시간을 다시 늘린다. */
-    public void rotate(String sid, Long userId, String newRefreshTokenHash, Duration ttl) {
-        save(sid, userId, newRefreshTokenHash, ttl);
+    /**
+     * 같은 세션의 Refresh Token 을 새 것으로 교체하고 만료 시간을 다시 늘린다.
+     *
+     * @return 세션이 이미 폐기됐거나 다른 사용자의 것이면 false(교체하지 않음)
+     */
+    public boolean rotate(String sid, Long userId, String newRefreshTokenHash, Duration ttl) {
+        Long result = redis.execute(
+                ROTATE_SCRIPT,
+                List.of(SESSION + sid, USER_SESSIONS + userId, REFRESH + newRefreshTokenHash),
+                String.valueOf(userId), sid, String.valueOf(ttl.toSeconds()));
+        return Long.valueOf(1).equals(result);
     }
 
     /**
