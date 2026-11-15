@@ -1,0 +1,4 @@
+# dev 프로필: Flyway 가 시드 데이터(db/seed)도 함께 적용한다. 운영에서는 이 프로필을 켜지 않는다.
+spring:
+  flyway:
+    locations: classpath:db/migration,classpath:db/seed
