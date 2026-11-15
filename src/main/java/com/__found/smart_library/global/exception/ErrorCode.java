@@ -17,6 +17,7 @@ public enum ErrorCode {
     RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "COMMON_003", "요청한 리소스를 찾을 수 없습니다."),
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "COMMON_004", "인증이 필요합니다."),
     FORBIDDEN(HttpStatus.FORBIDDEN, "COMMON_005", "접근 권한이 없습니다."),
+    CONCURRENT_UPDATE(HttpStatus.CONFLICT, "COMMON_006", "다른 요청이 먼저 수정했습니다. 다시 조회한 뒤 시도해 주세요."),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "COMMON_999", "서버 내부 오류가 발생했습니다."),
 
     // Auth / User

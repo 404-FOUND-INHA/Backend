@@ -13,6 +13,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -31,6 +32,11 @@ public class Book extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "book_id")
     private Long id;
+
+    /** 동시 수정 감지용(낙관적 락). */
+    @Version
+    @Column(nullable = false)
+    private Long version;
 
     @Column(nullable = false, length = 50)
     private String registrationNo;

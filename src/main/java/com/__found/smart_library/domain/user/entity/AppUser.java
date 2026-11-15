@@ -9,6 +9,8 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
+import org.hibernate.annotations.OptimisticLock;
 import java.time.LocalDateTime;
 import lombok.Builder;
 import lombok.Getter;
@@ -43,6 +45,13 @@ public class AppUser extends BaseEntity {
     @Column(nullable = false, length = 30)
     private UserStatus status;
 
+    /** 동시 수정 감지용. 탈퇴 상태를 다른 요청이 덮어쓰지 못하게 한다. */
+    @Version
+    @Column(nullable = false)
+    private Long version;
+
+    /** 로그인 시각 갱신은 버전 충돌 대상에서 제외한다(동시 로그인 허용). */
+    @OptimisticLock(excluded = true)
     private LocalDateTime lastLoginAt;
 
     private LocalDateTime withdrawnAt;

@@ -67,7 +67,7 @@ public class AuthService {
     /** Refresh Token 을 새 토큰으로 교체(rotation)한다. 한 번 쓴 Refresh Token 은 다시 쓸 수 없다. */
     @Transactional
     public TokenResponse refresh(String refreshToken, String ipAddress, String userAgent) {
-        AuthSession session = sessionRepository.findByRefreshTokenHash(TokenHasher.hash(refreshToken))
+        AuthSession session = sessionRepository.findByRefreshTokenHashForUpdate(TokenHasher.hash(refreshToken))
                 .filter(s -> s.isUsable(LocalDateTime.now()))
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REFRESH_TOKEN));
         AppUser user = userRepository.findById(session.getUserId())
