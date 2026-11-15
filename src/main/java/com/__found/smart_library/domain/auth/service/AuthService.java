@@ -3,8 +3,7 @@ package com.__found.smart_library.domain.auth.service;
 import com.__found.smart_library.domain.auth.dto.LoginRequest;
 import com.__found.smart_library.domain.auth.dto.SignupRequest;
 import com.__found.smart_library.domain.auth.dto.TokenResponse;
-import com.__found.smart_library.domain.auth.entity.AuthSession;
-import com.__found.smart_library.domain.auth.repository.AuthSessionRepository;
+import com.__found.smart_library.domain.auth.store.AuthSessionStore;
 import com.__found.smart_library.domain.user.dto.UserResponse;
 import com.__found.smart_library.domain.user.entity.AppUser;
 import com.__found.smart_library.domain.user.entity.UserRole;
@@ -13,7 +12,6 @@ import com.__found.smart_library.global.exception.BusinessException;
 import com.__found.smart_library.global.exception.ErrorCode;
 import com.__found.smart_library.global.security.JwtTokenProvider;
 import com.__found.smart_library.global.security.TokenHasher;
-import java.time.LocalDateTime;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -26,10 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class AuthService {
 
-    private static final int MAX_USER_AGENT_LENGTH = 500;
-
     private final AppUserRepository userRepository;
-    private final AuthSessionRepository sessionRepository;
+    private final AuthSessionStore sessionStore;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider tokenProvider;
 
@@ -55,56 +51,50 @@ public class AuthService {
     }
 
     @Transactional
-    public TokenResponse login(LoginRequest request, String ipAddress, String userAgent) {
+    public TokenResponse login(LoginRequest request) {
         AppUser user = userRepository.findByEmail(normalize(request.email()))
                 .filter(AppUser::isActive)
                 .filter(u -> passwordEncoder.matches(request.password(), u.getPasswordHash()))
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_CREDENTIALS));
         user.recordLogin();
-        return issueTokens(user, ipAddress, userAgent);
+        return issueTokens(user);
     }
 
-    /** Refresh Token 을 새 토큰으로 교체(rotation)한다. 한 번 쓴 Refresh Token 은 다시 쓸 수 없다. */
-    @Transactional
-    public TokenResponse refresh(String refreshToken, String ipAddress, String userAgent) {
-        AuthSession session = sessionRepository.findByRefreshTokenHashForUpdate(TokenHasher.hash(refreshToken))
-                .filter(s -> s.isUsable(LocalDateTime.now()))
+    /**
+     * Refresh Token 을 새 토큰으로 교체(rotation)한다. 한 번 쓴 Refresh Token 은 다시 쓸 수 없다.
+     * 토큰 소모가 Redis 의 GETDEL 로 원자적이라, 같은 토큰으로 동시에 요청해도 한 요청만 성공한다.
+     */
+    public TokenResponse refresh(String refreshToken) {
+        String sid = sessionStore.consumeRefreshToken(TokenHasher.hash(refreshToken))
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REFRESH_TOKEN));
-        AppUser user = userRepository.findById(session.getUserId())
-                .filter(AppUser::isActive)
+        Long userId = sessionStore.findUserId(sid)
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REFRESH_TOKEN));
-        session.revoke();
-        return issueTokens(user, ipAddress, userAgent);
+        AppUser user = userRepository.findById(userId).filter(AppUser::isActive).orElse(null);
+        if (user == null) {
+            sessionStore.revoke(sid);
+            throw new BusinessException(ErrorCode.INVALID_REFRESH_TOKEN);
+        }
+        String newRefreshToken = TokenHasher.newRefreshToken();
+        sessionStore.rotate(sid, userId, TokenHasher.hash(newRefreshToken), tokenProvider.refreshTokenTtl());
+        return tokenResponse(user, sid, newRefreshToken);
     }
 
-    @Transactional
-    public void logout(Long sessionId) {
-        sessionRepository.findById(sessionId).ifPresent(AuthSession::revoke);
+    public void logout(String sessionId) {
+        sessionStore.revoke(sessionId);
     }
 
-    private TokenResponse issueTokens(AppUser user, String ipAddress, String userAgent) {
+    private TokenResponse issueTokens(AppUser user) {
         String refreshToken = TokenHasher.newRefreshToken();
-        LocalDateTime now = LocalDateTime.now();
-        AuthSession session = sessionRepository.save(AuthSession.builder()
-                .userId(user.getId())
-                .refreshTokenHash(TokenHasher.hash(refreshToken))
-                .ipAddress(ipAddress)
-                .userAgent(truncate(userAgent))
-                .issuedAt(now)
-                .expiresAt(now.plus(tokenProvider.refreshTokenTtl()))
-                .build());
-        String accessToken = tokenProvider.createAccessToken(user.getId(), session.getId(), user.getRole());
+        String sid = sessionStore.create(user.getId(), TokenHasher.hash(refreshToken), tokenProvider.refreshTokenTtl());
+        return tokenResponse(user, sid, refreshToken);
+    }
+
+    private TokenResponse tokenResponse(AppUser user, String sid, String refreshToken) {
+        String accessToken = tokenProvider.createAccessToken(user.getId(), sid, user.getRole());
         return TokenResponse.bearer(accessToken, refreshToken, tokenProvider.accessTokenTtlSeconds());
     }
 
     private static String normalize(String email) {
         return email.trim().toLowerCase(Locale.ROOT);
-    }
-
-    private static String truncate(String value) {
-        if (value == null || value.length() <= MAX_USER_AGENT_LENGTH) {
-            return value;
-        }
-        return value.substring(0, MAX_USER_AGENT_LENGTH);
     }
 }

@@ -8,12 +8,14 @@ Java 17 · Spring Boot 4 · Spring Data JPA · Spring Security · PostgreSQL · 
 ## 시작하기
 ```bash
 cp .env.example .env     # DB 정보 등 값 채우기
-docker compose up -d      # 로컬 PostgreSQL 실행 (.env 의 DB_* 값 사용)
+docker compose up -d      # 로컬 PostgreSQL + Redis 실행 (.env 의 DB_*, REDIS_* 값 사용)
 ./gradlew bootRun
 ```
 스키마 변경은 `src/main/resources/db/migration` 의 Flyway 파일(`V{n}__설명.sql`)로만 한다.
 
 `.env` 의 `JWT_SECRET` 은 32바이트 이상의 임의 문자열로 바꾼다 (`openssl rand -base64 48`). 비어 있거나 짧으면 앱이 기동하지 않는다.
+
+로그인 세션과 Refresh Token 은 Redis 에 저장한다(TTL 로 자동 만료). Redis 가 꺼져 있으면 로그인·토큰 검증이 실패하므로 `docker compose up -d` 로 함께 띄워야 한다.
 
 ### 개발용 시드 데이터
 `.env` 에 `spring.profiles.active=dev` 가 있으면 기동 시 샘플 서가·도서·계정이 들어간다 (`src/main/resources/db/seed/`).

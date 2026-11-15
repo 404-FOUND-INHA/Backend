@@ -17,7 +17,7 @@ public final class AuthClaims {
         return Long.valueOf(jwt.getSubject());
     }
 
-    public static Long sessionId(Jwt jwt) {
-        return ((Number) jwt.getClaim(SESSION_ID)).longValue();
+    public static String sessionId(Jwt jwt) {
+        return jwt.getClaimAsString(SESSION_ID);
     }
 }

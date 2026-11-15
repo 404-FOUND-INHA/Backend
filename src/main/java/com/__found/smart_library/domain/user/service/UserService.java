@@ -1,12 +1,11 @@
 package com.__found.smart_library.domain.user.service;
 
-import com.__found.smart_library.domain.auth.repository.AuthSessionRepository;
+import com.__found.smart_library.domain.auth.store.AuthSessionStore;
 import com.__found.smart_library.domain.user.dto.UserResponse;
 import com.__found.smart_library.domain.user.entity.AppUser;
 import com.__found.smart_library.domain.user.repository.AppUserRepository;
 import com.__found.smart_library.global.exception.BusinessException;
 import com.__found.smart_library.global.exception.ErrorCode;
-import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,7 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserService {
 
     private final AppUserRepository userRepository;
-    private final AuthSessionRepository sessionRepository;
+    private final AuthSessionStore sessionStore;
 
     public UserResponse getMe(Long userId) {
         return UserResponse.from(findActive(userId));
@@ -28,7 +27,7 @@ public class UserService {
     public void withdraw(Long userId) {
         AppUser user = findActive(userId);
         user.withdraw();
-        sessionRepository.revokeAllByUserId(userId, LocalDateTime.now());
+        sessionStore.revokeAllByUser(userId);
     }
 
     private AppUser findActive(Long userId) {

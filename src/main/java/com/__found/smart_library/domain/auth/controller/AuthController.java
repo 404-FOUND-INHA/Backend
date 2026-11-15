@@ -8,10 +8,8 @@ import com.__found.smart_library.domain.auth.service.AuthService;
 import com.__found.smart_library.domain.user.dto.UserResponse;
 import com.__found.smart_library.global.response.ApiResponse;
 import com.__found.smart_library.global.security.AuthClaims;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -34,14 +32,13 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ApiResponse<TokenResponse> login(@Valid @RequestBody LoginRequest request, HttpServletRequest http) {
-        return ApiResponse.ok(authService.login(request, http.getRemoteAddr(), http.getHeader(HttpHeaders.USER_AGENT)));
+    public ApiResponse<TokenResponse> login(@Valid @RequestBody LoginRequest request) {
+        return ApiResponse.ok(authService.login(request));
     }
 
     @PostMapping("/refresh")
-    public ApiResponse<TokenResponse> refresh(@Valid @RequestBody RefreshRequest request, HttpServletRequest http) {
-        return ApiResponse.ok(authService.refresh(
-                request.refreshToken(), http.getRemoteAddr(), http.getHeader(HttpHeaders.USER_AGENT)));
+    public ApiResponse<TokenResponse> refresh(@Valid @RequestBody RefreshRequest request) {
+        return ApiResponse.ok(authService.refresh(request.refreshToken()));
     }
 
     @PostMapping("/logout")

@@ -11,7 +11,7 @@ import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.stereotype.Component;
 
 /**
- * Access Token 발급. subject=사용자 ID, sid=auth_session ID, role=권한.
+ * Access Token 발급. subject=사용자 ID, sid=세션 ID(Redis), role=권한.
  */
 @Component
 @RequiredArgsConstructor
@@ -20,7 +20,7 @@ public class JwtTokenProvider {
     private final JwtEncoder jwtEncoder;
     private final JwtProperties properties;
 
-    public String createAccessToken(Long userId, Long sessionId, UserRole role) {
+    public String createAccessToken(Long userId, String sessionId, UserRole role) {
         Instant now = Instant.now();
         JwtClaimsSet claims = JwtClaimsSet.builder()
                 .subject(String.valueOf(userId))
