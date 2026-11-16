@@ -25,6 +25,9 @@ docker compose up -d      # 로컬 PostgreSQL + Redis 실행 (.env 의 DB_*, RED
 | `librarian@example.com` | `Password1234!` | 사서 (LIBRARIAN) |
 | `worker@example.com` | `Password1234!` | 근로생 (STUDENT_WORKER) |
 
+## 배포
+EC2 + Docker Compose 배포 절차는 [docs/DEPLOY.md](docs/DEPLOY.md) 를 본다. 운영 환경변수 예시는 `.env.prod.example`.
+
 ## API
 모든 응답은 `{ "success": true, "data": ... }`, 에러는 `{ "code", "message", "errors" }` 형식이다.
 로그인 후 받은 `accessToken` 을 `Authorization: Bearer {token}` 으로 보낸다.
