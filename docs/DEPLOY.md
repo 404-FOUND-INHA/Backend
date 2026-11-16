@@ -116,9 +116,12 @@ docker stats --no-stream                                        # 메모리 사�
 DB가 서버 한 대에 있어서, 인스턴스가 사라지면 데이터도 같이 사라진다.
 
 ```bash
-# 백업
+# 백업 (pg_dump 가 실패하면 파일을 남기지 않는다)
+set -o pipefail
 docker compose -f docker-compose.prod.yml exec -T postgres \
-  pg_dump -U capstone smart_library | gzip > backup_$(date +%F).sql.gz
+  pg_dump -U capstone smart_library | gzip > backup.tmp \
+  && mv backup.tmp backup_$(date +%F).sql.gz \
+  || { rm -f backup.tmp; echo "백업 실패" >&2; }
 
 # 복구 (빈 DB에)
 gunzip -c backup_2026-01-01.sql.gz | docker compose -f docker-compose.prod.yml exec -T postgres \
