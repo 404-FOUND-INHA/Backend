@@ -116,16 +116,20 @@ docker stats --no-stream                                        # 메모리 사�
 DB가 서버 한 대에 있어서, 인스턴스가 사라지면 데이터도 같이 사라진다.
 
 ```bash
-# 백업 (pg_dump 가 실패하면 파일을 남기지 않는다)
+# 백업 (실패하면 파일을 남기지 않고, 실행마다 별도 임시 파일을 쓴다)
 set -o pipefail
-docker compose -f docker-compose.prod.yml exec -T postgres \
-  pg_dump -U capstone smart_library | gzip > backup.tmp \
-  && mv backup.tmp backup_$(date +%F).sql.gz \
-  || { rm -f backup.tmp; echo "백업 실패" >&2; }
+tmp=$(mktemp backup.XXXXXX)
+if docker compose -f docker-compose.prod.yml exec -T postgres \
+     pg_dump -U capstone smart_library | gzip > "$tmp"; then
+  mv "$tmp" "backup_$(date +%F).sql.gz"
+else
+  rm -f "$tmp"; echo "백업 실패" >&2
+fi
 
-# 복구 (빈 DB에)
+# 복구 (빈 DB에). 오류가 나면 중단하고 전체를 되돌린다
+set -o pipefail
 gunzip -c backup_2026-01-01.sql.gz | docker compose -f docker-compose.prod.yml exec -T postgres \
-  psql -U capstone -d smart_library
+  psql -U capstone -d smart_library -v ON_ERROR_STOP=1 --single-transaction
 ```
 
 cron으로 매일 실행하고 S3 등 서버 밖에 보관한다. 복구가 되는지 한 번은 직접 확인한다.
