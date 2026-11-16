@@ -126,10 +126,17 @@ else
   rm -f "$tmp"; echo "백업 실패" >&2
 fi
 
-# 복구 (빈 DB에). 오류가 나면 중단하고 전체를 되돌린다
-set -o pipefail
-gunzip -c backup_2026-01-01.sql.gz | docker compose -f docker-compose.prod.yml exec -T postgres \
-  psql -U capstone -d smart_library -v ON_ERROR_STOP=1 --single-transaction
+# 복구 (빈 DB에). 압축 해제가 끝까지 성공한 경우에만 psql 을 실행한다
+# (손상된 백업의 일부만 반영되는 것을 막는다). 오류가 나면 중단하고 전체를 되돌린다.
+tmp=$(mktemp restore.XXXXXX)
+if gunzip -c backup_2026-01-01.sql.gz > "$tmp" \
+   && docker compose -f docker-compose.prod.yml exec -T postgres \
+        psql -U capstone -d smart_library -v ON_ERROR_STOP=1 --single-transaction < "$tmp"; then
+  echo "복구 완료"
+else
+  echo "복구 실패" >&2
+fi
+rm -f "$tmp"
 ```
 
 cron으로 매일 실행하고 S3 등 서버 밖에 보관한다. 복구가 되는지 한 번은 직접 확인한다.
