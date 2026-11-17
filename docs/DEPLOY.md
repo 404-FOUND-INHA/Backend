@@ -11,7 +11,9 @@ EC2 한 대에 Nginx · Spring Boot · PostgreSQL · Redis를 `docker-compose.pr
 
 ## 0. 사전 조건
 - EC2(Ubuntu 24.04, 메모리 2GB 이상), Elastic IP 연결
-- 보안그룹: 80, 443은 전체 허용 / 22는 내 IP만 / 5432, 6379, 8080은 열지 않음
+- 보안그룹: 80, 443은 전체 허용 / 5432, 6379, 8080은 열지 않음 / 22는 아래 참고
+  - 자동 배포(9단계)를 쓰면 GitHub Actions 서버의 IP가 계속 바뀌므로 22를 전체(`0.0.0.0/0`) 허용해야 한다. 대신 **키 로그인만 허용**하고(`PasswordAuthentication no`), 개인키는 GitHub Secrets에만 둔다.
+  - 자동 배포를 쓰지 않으면 22는 내 IP만 허용하는 것이 가장 안전하다.
 - DNS: `api.libsync.cloud` A 레코드가 Elastic IP를 가리킴 (`dig api.libsync.cloud`로 확인)
 
 ## 1. 서버 준비 (최초 1회)
@@ -140,6 +142,37 @@ rm -f "$tmp"
 ```
 
 cron으로 매일 실행하고 S3 등 서버 밖에 보관한다. 복구가 되는지 한 번은 직접 확인한다.
+
+## 9. 자동 배포 (GitHub Actions)
+`main`에 머지되면 `.github/workflows/deploy.yml`이 테스트를 돌린 뒤, EC2에 SSH로 접속해 `git pull` + `docker compose up -d --build`를 실행하고 `https://api.libsync.cloud/actuator/health`가 UP인지 확인한다. PR마다는 `ci.yml`이 테스트만 돌린다.
+
+### 최초 1회 설정
+1. **배포 전용 SSH 키 만들기** (내 PC에서, 비밀번호 없이):
+   ```bash
+   ssh-keygen -t ed25519 -f deploy_key -N "" -C "github-actions-deploy"
+   ```
+2. **공개키를 서버에 등록**: `deploy_key.pub` 내용을 EC2의 `~/.ssh/authorized_keys` 맨 아래에 한 줄 추가한다.
+3. **서버 지문 만들기** (내 PC에서): `ssh-keyscan -t ed25519 <Elastic IP>` 출력 한 줄을 복사한다.
+   등록하기 전에 가짜 서버가 아닌지 확인한다. 서버와 내 PC에서 각각 아래를 실행해 `SHA256:...` 값이 같아야 한다.
+   ```bash
+   ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub                          # EC2 서버에서
+   ssh-keyscan -t ed25519 <Elastic IP> 2>/dev/null | ssh-keygen -lf -        # 내 PC에서
+   ```
+4. **GitHub 저장소 → Settings → Secrets and variables → Actions → New repository secret**에 3개를 등록한다.
+
+   | 이름 | 값 |
+   |---|---|
+   | `EC2_HOST` | Elastic IP |
+   | `EC2_SSH_KEY` | `deploy_key` 파일 전체 내용 (`-----BEGIN` ~ `END-----` 포함) |
+   | `EC2_KNOWN_HOSTS` | 3번에서 복사한 한 줄 |
+5. 등록이 끝나면 내 PC의 `deploy_key`, `deploy_key.pub` 파일은 삭제한다.
+
+### 동작과 주의
+- Actions 탭에서 Deploy 워크플로의 **Run workflow**로 수동 실행도 할 수 있다.
+- 서버의 `.env`는 Git에 없으므로 배포가 건드리지 않는다. 환경변수를 바꿀 때는 서버에서 직접 수정하고 `up -d`로 반영한다.
+- 배포는 테스트를 통과한 커밋(`github.sha`)만 서버에 반영한다(해당 커밋을 `git checkout --detach`). 그래서 서버 저장소는 항상 detached HEAD 상태이고, 서버에서 추적 파일을 직접 고쳐 두면 실패하므로 서버에서 코드를 직접 수정하지 않는다. 서버에서 수동으로 `git pull`을 쓸 때는 먼저 `git switch main`을 한다.
+- 새 버전이 뜨지 못하면 헬스체크 단계가 실패로 표시된다. 이때 서버에는 새 컨테이너가 떠 있지 않을 수 있으므로 `logs backend`로 원인을 확인하고, 되돌리려면 GitHub Actions 탭에서 **이전에 성공한 Deploy 실행을 Re-run**한다. 그 커밋으로 서버가 이동해 다시 빌드·배포된다.
+- 스키마를 바꾸는 Flyway 마이그레이션이 포함된 배포는 배포 전에 DB 백업(8단계)을 해 둔다.
 
 ## 문제 해결
 | 증상 | 확인 |
