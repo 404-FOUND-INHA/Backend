@@ -1,0 +1,56 @@
+# main 에 머지되면 테스트 후 EC2 에 배포한다 (서버에서 git pull + docker compose up -d --build).
+# 필요한 GitHub Secrets: EC2_HOST, EC2_SSH_KEY, EC2_KNOWN_HOSTS (docs/DEPLOY.md 9단계)
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# 배포가 겹치지 않게 한다. 진행 중인 배포는 끊지 않고 다음 것을 기다린다.
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  test:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: SSH 설정
+        env:
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_KNOWN_HOSTS: ${{ secrets.EC2_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$EC2_SSH_KEY" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "$EC2_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: 서버에서 배포
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+        run: |
+          ssh -i ~/.ssh/id_deploy -o IdentitiesOnly=yes "ubuntu@${EC2_HOST}" bash -se <<'REMOTE'
+          set -euo pipefail
+          cd ~/smart-library
+          git pull --ff-only
+          docker compose -f docker-compose.prod.yml up -d --build
+          docker image prune -f
+          docker compose -f docker-compose.prod.yml ps
+          REMOTE
+
+      - name: 헬스체크
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS https://api.libsync.cloud/actuator/health; then echo; exit 0; fi
+            echo "대기 중... ($i/30)"; sleep 10
+          done
+          echo "헬스체크 실패" >&2; exit 1
