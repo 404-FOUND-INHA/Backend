@@ -52,6 +52,8 @@ class ScanSessionCreateConcurrencyTest {
 
     private final String prefix = "TEST-" + UUID.randomUUID().toString().substring(0, 8);
     private Long userId;
+    /** 요청 스레드가 종료 대기 시간 안에 끝나지 않았는지. true 이면 정리(DELETE)가 진행 중인 요청과 경쟁하므로 정리를 건너뛴다. */
+    private boolean requestThreadsStillRunning;
 
     @BeforeEach
     void setUp() {
@@ -65,6 +67,10 @@ class ScanSessionCreateConcurrencyTest {
 
     @AfterEach
     void cleanUp() {
+        // 진행 중인 요청이 남아 있으면 그 요청이 데이터를 다시 만들 수 있으므로 정리하지 않고 실패시킨다(prefix 로 수동 정리 가능).
+        if (requestThreadsStillRunning) {
+            throw new IllegalStateException("요청 스레드가 종료되지 않아 DB 정리를 건너뜁니다. 잔여 데이터 prefix=" + prefix);
+        }
         jdbc.update("delete from scan_session_shelf where scan_session_id in "
                 + "(select scan_session_id from scan_session where target_area like ?)", prefix + "%");
         jdbc.update("delete from scan_session where target_area like ?", prefix + "%");
@@ -148,7 +154,18 @@ class ScanSessionCreateConcurrencyTest {
             }
             return statuses;
         } finally {
-            pool.shutdownNow();
+            requestThreadsStillRunning = !shutdownAndAwait(pool);
+        }
+    }
+
+    /** 스레드풀을 중단하고 모든 스레드가 끝날 때까지 기다린다. 제한 시간 안에 끝나지 않으면 false. */
+    private boolean shutdownAndAwait(ExecutorService pool) {
+        pool.shutdownNow();
+        try {
+            return pool.awaitTermination(30, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
         }
     }
 
