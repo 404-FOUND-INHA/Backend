@@ -32,7 +32,12 @@ public enum ErrorCode {
 
     // Book
     BOOK_NOT_FOUND(HttpStatus.NOT_FOUND, "BOOK_001", "도서를 찾을 수 없습니다."),
-    BOOK_REGISTRATION_NO_DUPLICATED(HttpStatus.CONFLICT, "BOOK_002", "이미 등록된 도서 등록번호입니다.");
+    BOOK_REGISTRATION_NO_DUPLICATED(HttpStatus.CONFLICT, "BOOK_002", "이미 등록된 도서 등록번호입니다."),
+
+    // Scan (장서점검)
+    SCAN_SESSION_NOT_FOUND(HttpStatus.NOT_FOUND, "SCAN_001", "장서점검 회차를 찾을 수 없습니다."),
+    SCAN_SESSION_ALREADY_OPEN(HttpStatus.CONFLICT, "SCAN_002", "해당 자료실에 완료되지 않은 점검 회차가 있습니다."),
+    SCAN_NO_ACTIVE_SHELF(HttpStatus.BAD_REQUEST, "SCAN_003", "점검할 수 있는 서가가 없는 자료실입니다.");
 
     private final HttpStatus status;
     private final String code;

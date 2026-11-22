@@ -16,4 +16,17 @@ public interface ShelfRepository extends JpaRepository<Shelf, Long>, JpaSpecific
             order by s.floorNo
             """)
     List<Integer> findMapFloors();
+
+    /** 사용 중 서가를 zone(자료실)별로 집계한다. zone 이 없는 서가는 제외. */
+    @Query("""
+            select s.zone as zone, min(s.floorNo) as floorNo, count(s) as shelfCount
+            from Shelf s
+            where s.active = true and s.zone is not null and trim(s.zone) <> ''
+            group by s.zone
+            order by s.zone
+            """)
+    List<ShelfZoneSummary> summarizeActiveZones();
+
+    /** 해당 자료실(zone)의 사용 중 서가. */
+    List<Shelf> findByZoneAndActiveTrueOrderById(String zone);
 }
