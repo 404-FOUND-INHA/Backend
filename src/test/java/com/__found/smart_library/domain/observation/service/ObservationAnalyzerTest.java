@@ -1,0 +1,385 @@
+package com.__found.smart_library.domain.observation.service;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import com.__found.smart_library.domain.book.entity.LifecycleStatus;
+import com.__found.smart_library.domain.book.repository.BookMatchInfo;
+import com.__found.smart_library.domain.observation.entity.CandidateReason;
+import com.__found.smart_library.domain.observation.entity.ObservationAnalysisStatus;
+import com.__found.smart_library.domain.observation.entity.ObservationStatusReason;
+import com.__found.smart_library.domain.observation.service.MatchResult.Candidate;
+import com.__found.smart_library.global.exception.BusinessException;
+import com.__found.smart_library.global.exception.ErrorCode;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.support.StaticListableBeanFactory;
+
+/**
+ * 판정 규칙 단위 테스트. DB 없이 파서는 라벨→파싱 결과 맵으로, 매처는 Mock 으로 대체해 모든 분기를 확인한다.
+ */
+class ObservationAnalyzerTest {
+
+    private static final Long SHELF_A = 1L;
+    private static final Long SHELF_B = 2L;
+
+    private final BookMatcher matcher = mock(BookMatcher.class);
+
+    // ---- 건별 판정 ----
+
+    @Test
+    @DisplayName("유일 매칭이고 예상 서가와 관측 서가가 같으면 NORMAL 이다")
+    void analyze_expectedShelfEqualsDetectedShelf_returnsNormal() {
+        stubMatches(MatchResult.matched(book(10L, SHELF_A, LifecycleStatus.NORMAL)));
+
+        ObservationAnalysis result = analyzeOne("A", SHELF_A);
+
+        assertThat(result.status()).isEqualTo(ObservationAnalysisStatus.NORMAL);
+        assertThat(result.reason()).isNull();
+        assertThat(result.bookId()).isEqualTo(10L);
+        assertThat(result.confidence()).isEqualByComparingTo("1.0000");
+        assertThat(result.parsed()).isEqualTo(parsedOf("A"));
+        assertThat(result.candidates()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("유일 매칭이지만 예상 서가와 관측 서가가 다르면 MISPLACED / WRONG_SHELF 이고 도서는 유지한다")
+    void analyze_expectedShelfDiffersFromDetectedShelf_returnsMisplaced() {
+        stubMatches(MatchResult.matched(book(10L, SHELF_A, LifecycleStatus.NORMAL)));
+
+        ObservationAnalysis result = analyzeOne("A", SHELF_B);
+
+        assertThat(result.status()).isEqualTo(ObservationAnalysisStatus.MISPLACED);
+        assertThat(result.reason()).isEqualTo(ObservationStatusReason.WRONG_SHELF);
+        assertThat(result.bookId()).isEqualTo(10L);
+        assertThat(result.confidence()).isEqualByComparingTo("1.0000");
+    }
+
+    @Test
+    @DisplayName("완전 일치 도서가 없으면 REVIEW_REQUIRED / NO_MATCH 이고 도서는 비우고 후보는 유지한다")
+    void analyze_noMatch_returnsReviewRequiredKeepingCandidates() {
+        List<Candidate> candidates = List.of(
+                new Candidate(1, book(20L, SHELF_A, LifecycleStatus.NORMAL), CandidateReason.COPY_MISMATCH));
+        stubMatches(MatchResult.noMatch(candidates));
+
+        ObservationAnalysis result = analyzeOne("A", SHELF_A);
+
+        assertThat(result.status()).isEqualTo(ObservationAnalysisStatus.REVIEW_REQUIRED);
+        assertThat(result.reason()).isEqualTo(ObservationStatusReason.NO_MATCH);
+        assertThat(result.bookId()).isNull();
+        assertThat(result.confidence()).isNull();
+        assertThat(result.parsed()).isEqualTo(parsedOf("A"));
+        assertThat(result.candidates()).isEqualTo(candidates);
+    }
+
+    @Test
+    @DisplayName("매칭 후보가 없는 NO_MATCH 도 빈 후보로 REVIEW_REQUIRED 가 된다")
+    void analyze_noMatchWithoutCandidates_returnsReviewRequiredWithEmptyCandidates() {
+        stubMatches(MatchResult.noMatch(List.of()));
+
+        ObservationAnalysis result = analyzeOne("A", SHELF_A);
+
+        assertThat(result.reason()).isEqualTo(ObservationStatusReason.NO_MATCH);
+        assertThat(result.candidates()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("완전 일치 도서가 여러 권이면 REVIEW_REQUIRED / AMBIGUOUS_MATCH 이고 도서는 비우고 후보는 유지한다")
+    void analyze_ambiguous_returnsReviewRequiredKeepingCandidates() {
+        List<Candidate> candidates = List.of(
+                new Candidate(1, book(30L, SHELF_A, LifecycleStatus.NORMAL), CandidateReason.EXACT_MATCH),
+                new Candidate(2, book(31L, SHELF_A, LifecycleStatus.NORMAL), CandidateReason.EXACT_MATCH));
+        stubMatches(MatchResult.ambiguous(candidates));
+
+        ObservationAnalysis result = analyzeOne("A", SHELF_A);
+
+        assertThat(result.status()).isEqualTo(ObservationAnalysisStatus.REVIEW_REQUIRED);
+        assertThat(result.reason()).isEqualTo(ObservationStatusReason.AMBIGUOUS_MATCH);
+        assertThat(result.bookId()).isNull();
+        assertThat(result.confidence()).isNull();
+        assertThat(result.candidates()).isEqualTo(candidates);
+    }
+
+    @Test
+    @DisplayName("제적 도서가 발견되면 위치와 무관하게 REVIEW_REQUIRED / DISPOSED_BOOK 이고 도서·신뢰도는 유지한다")
+    void analyze_disposedBook_returnsReviewRequiredKeepingBook() {
+        stubMatches(MatchResult.matched(book(40L, SHELF_A, LifecycleStatus.DISPOSED)));
+
+        ObservationAnalysis sameShelf = analyzeOne("A", SHELF_A);
+
+        assertThat(sameShelf.status()).isEqualTo(ObservationAnalysisStatus.REVIEW_REQUIRED);
+        assertThat(sameShelf.reason()).isEqualTo(ObservationStatusReason.DISPOSED_BOOK);
+        assertThat(sameShelf.bookId()).isEqualTo(40L);
+        assertThat(sameShelf.confidence()).isEqualByComparingTo("1.0000");
+
+        // 다른 서가에서 발견되어도 오배치가 아니라 제적 도서로 본다
+        assertThat(analyzeOne("A", SHELF_B).reason()).isEqualTo(ObservationStatusReason.DISPOSED_BOOK);
+    }
+
+    @Test
+    @DisplayName("제적 도서이면서 예상 서가가 없어도 DISPOSED_BOOK 이 우선한다")
+    void analyze_disposedBookWithoutExpectedShelf_returnsDisposedBook() {
+        stubMatches(MatchResult.matched(book(41L, null, LifecycleStatus.DISPOSED)));
+
+        assertThat(analyzeOne("A", SHELF_A).reason()).isEqualTo(ObservationStatusReason.DISPOSED_BOOK);
+    }
+
+    @Test
+    @DisplayName("예상 서가가 없는 도서가 발견되면 REVIEW_REQUIRED / NO_EXPECTED_SHELF 이고 도서는 유지한다")
+    void analyze_bookWithoutExpectedShelf_returnsReviewRequiredKeepingBook() {
+        stubMatches(MatchResult.matched(book(50L, null, LifecycleStatus.NORMAL)));
+
+        ObservationAnalysis result = analyzeOne("A", SHELF_A);
+
+        assertThat(result.status()).isEqualTo(ObservationAnalysisStatus.REVIEW_REQUIRED);
+        assertThat(result.reason()).isEqualTo(ObservationStatusReason.NO_EXPECTED_SHELF);
+        assertThat(result.bookId()).isEqualTo(50L);
+        assertThat(result.confidence()).isEqualByComparingTo("1.0000");
+    }
+
+    @Test
+    @DisplayName("소재불명·훼손 상태 도서는 별도 규칙 없이 위치만으로 판정한다")
+    void analyze_missingOrDamagedBook_judgedByLocationOnly() {
+        stubMatches(MatchResult.matched(book(60L, SHELF_A, LifecycleStatus.MISSING)),
+                MatchResult.matched(book(61L, SHELF_A, LifecycleStatus.DAMAGED)));
+
+        List<ObservationAnalysis> results = analyzer().analyze(List.of(
+                new AnalysisInput("A", SHELF_A), new AnalysisInput("B", SHELF_B)));
+
+        assertThat(results.get(0).status()).isEqualTo(ObservationAnalysisStatus.NORMAL);
+        assertThat(results.get(1).status()).isEqualTo(ObservationAnalysisStatus.MISPLACED);
+    }
+
+    // ---- 파싱 실패 ----
+
+    @Test
+    @DisplayName("라벨이 null 이거나 공백이면 파서와 매처를 호출하지 않고 OCR_FAILED 가 된다")
+    void analyze_nullOrBlankLabel_returnsOcrFailedWithoutParsingOrMatching() {
+        CallNumberParser parser = mock(CallNumberParser.class);
+
+        List<ObservationAnalysis> results = new ObservationAnalyzer(providerOf(parser), matcher).analyze(List.of(
+                new AnalysisInput(null, SHELF_A), new AnalysisInput("", SHELF_A), new AnalysisInput("   ", SHELF_A)));
+
+        assertThat(results).hasSize(3).allSatisfy(r -> {
+            assertThat(r.status()).isEqualTo(ObservationAnalysisStatus.REVIEW_REQUIRED);
+            assertThat(r.reason()).isEqualTo(ObservationStatusReason.OCR_FAILED);
+            assertThat(r.bookId()).isNull();
+            assertThat(r.confidence()).isNull();
+            assertThat(r.parsed()).isNull();
+            assertThat(r.candidates()).isEmpty();
+        });
+        verify(parser, never()).parse(any());
+        verify(matcher, never()).match(anyList());
+    }
+
+    @Test
+    @DisplayName("파서가 해석하지 못한 라벨(빈 결과)은 OCR_FAILED 이고 매처에 전달하지 않는다")
+    void analyze_parserReturnsEmpty_returnsOcrFailedWithoutMatching() {
+        ObservationAnalysis result = analyzeOne("해석불가", SHELF_A);
+
+        assertThat(result.status()).isEqualTo(ObservationAnalysisStatus.REVIEW_REQUIRED);
+        assertThat(result.reason()).isEqualTo(ObservationStatusReason.OCR_FAILED);
+        assertThat(result.bookId()).isNull();
+        verify(matcher, never()).match(anyList());
+    }
+
+    @Test
+    @DisplayName("파서 내부 예외는 OCR_FAILED 로 숨기지 않고 그대로 전파하며 매처도 호출하지 않는다")
+    void analyze_parserThrows_propagatesException() {
+        CallNumberParser failing = raw -> {
+            throw new IllegalStateException("parser bug");
+        };
+
+        assertThatThrownBy(() -> new ObservationAnalyzer(providerOf(failing), matcher)
+                .analyze(List.of(new AnalysisInput("A", SHELF_A))))
+                .isInstanceOf(IllegalStateException.class).hasMessage("parser bug");
+        verify(matcher, never()).match(anyList());
+    }
+
+    @Test
+    @DisplayName("파서 구현 빈이 없으면 503(SCAN_004)으로 실패하고 매처를 호출하지 않는다")
+    void analyze_parserBeanAbsent_throwsParserUnavailable() {
+        ObservationAnalyzer analyzer = new ObservationAnalyzer(
+                new StaticListableBeanFactory().getBeanProvider(CallNumberParser.class), matcher);
+
+        assertThatThrownBy(() -> analyzer.analyze(List.of(new AnalysisInput("A", SHELF_A))))
+                .isInstanceOfSatisfying(BusinessException.class, e -> {
+                    assertThat(e.getErrorCode()).isEqualTo(ErrorCode.SCAN_PARSER_UNAVAILABLE);
+                    assertThat(e.getErrorCode().getStatus().value()).isEqualTo(503);
+                });
+        verify(matcher, never()).match(anyList());
+    }
+
+    @Test
+    @DisplayName("입력이 비어 있으면 빈 결과를 반환하고 매처를 호출하지 않는다")
+    void analyze_emptyInputs_returnsEmpty() {
+        assertThat(analyzer().analyze(List.of())).isEmpty();
+        verify(matcher, never()).match(anyList());
+    }
+
+    // ---- 같은 도서의 중복 관측 ----
+
+    @Test
+    @DisplayName("같은 도서가 두 번 관측되면 정상·오배치 여부와 무관하게 모두 DUPLICATE_OBSERVATION 이고 도서는 유지한다")
+    void analyze_sameBookObservedTwice_marksBothAsDuplicate() {
+        BookMatchInfo book = book(70L, SHELF_A, LifecycleStatus.NORMAL);
+        stubMatches(MatchResult.matched(book), MatchResult.matched(book));
+
+        // 한 번은 예상 서가(NORMAL), 한 번은 다른 서가(MISPLACED)에서 관측
+        List<ObservationAnalysis> results = analyzer().analyze(List.of(
+                new AnalysisInput("A", SHELF_A), new AnalysisInput("A2", SHELF_B)));
+
+        assertThat(results).hasSize(2).allSatisfy(r -> {
+            assertThat(r.status()).isEqualTo(ObservationAnalysisStatus.REVIEW_REQUIRED);
+            assertThat(r.reason()).isEqualTo(ObservationStatusReason.DUPLICATE_OBSERVATION);
+            assertThat(r.bookId()).isEqualTo(70L);
+            assertThat(r.confidence()).isEqualByComparingTo("1.0000");
+        });
+    }
+
+    @Test
+    @DisplayName("같은 서가에서 세 번 이상 관측되어도 모든 관측이 중복으로 처리된다")
+    void analyze_sameBookObservedThreeTimesOnSameShelf_marksAllAsDuplicate() {
+        BookMatchInfo book = book(71L, SHELF_A, LifecycleStatus.NORMAL);
+        stubMatches(MatchResult.matched(book), MatchResult.matched(book), MatchResult.matched(book));
+
+        List<ObservationAnalysis> results = analyzer().analyze(List.of(
+                new AnalysisInput("A", SHELF_A), new AnalysisInput("A2", SHELF_A), new AnalysisInput("A3", SHELF_A)));
+
+        assertThat(results).extracting(ObservationAnalysis::reason)
+                .containsOnly(ObservationStatusReason.DUPLICATE_OBSERVATION);
+    }
+
+    @Test
+    @DisplayName("서로 다른 도서는 서로의 판정에 영향을 주지 않는다")
+    void analyze_differentBooks_areNotAffectedByEachOther() {
+        stubMatches(MatchResult.matched(book(72L, SHELF_A, LifecycleStatus.NORMAL)),
+                MatchResult.matched(book(73L, SHELF_A, LifecycleStatus.NORMAL)));
+
+        List<ObservationAnalysis> results = analyzer().analyze(List.of(
+                new AnalysisInput("A", SHELF_A), new AnalysisInput("B", SHELF_A)));
+
+        assertThat(results).extracting(ObservationAnalysis::status)
+                .containsOnly(ObservationAnalysisStatus.NORMAL);
+    }
+
+    @Test
+    @DisplayName("중복이면서 제적 도서이면 DISPOSED_BOOK 사유를 유지한다")
+    void analyze_duplicateAndDisposed_keepsDisposedReason() {
+        BookMatchInfo book = book(74L, SHELF_A, LifecycleStatus.DISPOSED);
+        stubMatches(MatchResult.matched(book), MatchResult.matched(book));
+
+        List<ObservationAnalysis> results = analyzer().analyze(List.of(
+                new AnalysisInput("A", SHELF_A), new AnalysisInput("A2", SHELF_A)));
+
+        assertThat(results).extracting(ObservationAnalysis::reason)
+                .containsOnly(ObservationStatusReason.DISPOSED_BOOK);
+        assertThat(results).extracting(ObservationAnalysis::bookId).containsOnly(74L);
+    }
+
+    @Test
+    @DisplayName("중복이면서 예상 서가가 없으면 DUPLICATE_OBSERVATION 이 우선한다")
+    void analyze_duplicateAndNoExpectedShelf_returnsDuplicate() {
+        BookMatchInfo book = book(75L, null, LifecycleStatus.NORMAL);
+        stubMatches(MatchResult.matched(book), MatchResult.matched(book));
+
+        List<ObservationAnalysis> results = analyzer().analyze(List.of(
+                new AnalysisInput("A", SHELF_A), new AnalysisInput("A2", SHELF_A)));
+
+        assertThat(results).extracting(ObservationAnalysis::reason)
+                .containsOnly(ObservationStatusReason.DUPLICATE_OBSERVATION);
+    }
+
+    @Test
+    @DisplayName("도서가 식별되지 않은 관측(NO_MATCH·AMBIGUOUS_MATCH·OCR_FAILED)은 중복 검사 대상이 아니다")
+    void analyze_unresolvedObservations_areNotCheckedForDuplicates() {
+        List<Candidate> sameCandidates = List.of(
+                new Candidate(1, book(80L, SHELF_A, LifecycleStatus.NORMAL), CandidateReason.COPY_MISMATCH));
+        stubMatches(MatchResult.noMatch(sameCandidates), MatchResult.noMatch(sameCandidates),
+                MatchResult.ambiguous(sameCandidates));
+
+        List<ObservationAnalysis> results = analyzer().analyze(List.of(
+                new AnalysisInput("A", SHELF_A), new AnalysisInput("B", SHELF_A), new AnalysisInput("C", SHELF_A),
+                new AnalysisInput("해석불가", SHELF_A), new AnalysisInput("해석불가", SHELF_A)));
+
+        assertThat(results).extracting(ObservationAnalysis::reason).containsExactly(
+                ObservationStatusReason.NO_MATCH, ObservationStatusReason.NO_MATCH,
+                ObservationStatusReason.AMBIGUOUS_MATCH, ObservationStatusReason.OCR_FAILED,
+                ObservationStatusReason.OCR_FAILED);
+    }
+
+    // ---- 입출력 순서·호출 횟수 ----
+
+    @Test
+    @DisplayName("파싱 성공·실패가 섞여도 결과는 입력 순서와 같고 매처는 파싱된 건만 모아 한 번 호출한다")
+    void analyze_mixedInputs_keepsOrderAndCallsMatcherOnce() {
+        stubMatches(MatchResult.matched(book(90L, SHELF_A, LifecycleStatus.NORMAL)),
+                MatchResult.matched(book(91L, SHELF_A, LifecycleStatus.NORMAL)));
+
+        List<ObservationAnalysis> results = analyzer().analyze(List.of(
+                new AnalysisInput("A", SHELF_A),        // 0: 매칭 → NORMAL
+                new AnalysisInput(null, SHELF_A),       // 1: 라벨 없음
+                new AnalysisInput("B", SHELF_B),        // 2: 매칭 → MISPLACED
+                new AnalysisInput("해석불가", SHELF_A))); // 3: 파서 실패
+
+        assertThat(results).extracting(ObservationAnalysis::status).containsExactly(
+                ObservationAnalysisStatus.NORMAL, ObservationAnalysisStatus.REVIEW_REQUIRED,
+                ObservationAnalysisStatus.MISPLACED, ObservationAnalysisStatus.REVIEW_REQUIRED);
+        assertThat(results).extracting(ObservationAnalysis::bookId).containsExactly(90L, null, 91L, null);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<MatchRequest>> captor = ArgumentCaptor.forClass(List.class);
+        verify(matcher, times(1)).match(captor.capture());
+        assertThat(captor.getValue()).containsExactly(
+                new MatchRequest(parsedOf("A"), SHELF_A), new MatchRequest(parsedOf("B"), SHELF_B));
+    }
+
+    // ---- 도우미 ----
+
+    /** 라벨 "A"·"B"·"A2"·"A3"·"C" 는 파싱되고, 그 외(예: "해석불가")는 파서가 빈 결과를 돌려준다. */
+    private static final Map<String, ParsedCallNumber> PARSED = Map.of(
+            "A", parsedOf("A"), "A2", parsedOf("A2"), "A3", parsedOf("A3"),
+            "B", parsedOf("B"), "C", parsedOf("C"));
+
+    private static ParsedCallNumber parsedOf(String label) {
+        return new ParsedCallNumber("cls-" + label, "sym-" + label, "c.1");
+    }
+
+    private CallNumberParser parser() {
+        return raw -> Optional.ofNullable(PARSED.get(raw));
+    }
+
+    private ObservationAnalyzer analyzer() {
+        return new ObservationAnalyzer(providerOf(parser()), matcher);
+    }
+
+    private static ObjectProvider<CallNumberParser> providerOf(CallNumberParser parser) {
+        return new StaticListableBeanFactory(Map.of("parser", parser)).getBeanProvider(CallNumberParser.class);
+    }
+
+    private ObservationAnalysis analyzeOne(String label, Long shelfId) {
+        return analyzer().analyze(List.of(new AnalysisInput(label, shelfId))).get(0);
+    }
+
+    /** 매처가 입력 순서대로 돌려줄 결과를 지정한다. */
+    private void stubMatches(MatchResult... results) {
+        when(matcher.match(anyList())).thenReturn(List.of(results));
+    }
+
+    private static BookMatchInfo book(Long id, Long expectedShelfId, LifecycleStatus lifecycleStatus) {
+        return new BookMatchInfo(id, "REG-" + id, "도서 " + id, "cls", "sym", "c.1", expectedShelfId,
+                lifecycleStatus);
+    }
+}
