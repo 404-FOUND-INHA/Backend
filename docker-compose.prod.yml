@@ -40,6 +40,8 @@ services:
       JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-30m}
       JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-14d}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?.env 에 CORS_ALLOWED_ORIGINS 를 설정하세요}
+      # 선택: 비어 있으면 Vision 결과 수신 API 가 모든 요청을 거부한다 (배포가 실패하지 않는다)
+      VISION_API_KEY: ${VISION_API_KEY:-}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       # 주의: spring.profiles.active=dev 를 넣지 않는다. 넣으면 시드 계정이 운영 DB 에 들어간다.
     depends_on:

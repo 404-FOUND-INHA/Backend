@@ -2,6 +2,7 @@ package com.__found.smart_library.domain.scan.repository;
 
 import com.__found.smart_library.domain.scan.entity.ScanSessionShelf;
 import com.__found.smart_library.domain.scan.entity.ScanSessionShelfId;
+import com.__found.smart_library.domain.shelf.entity.Shelf;
 import java.util.Collection;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -23,4 +24,14 @@ public interface ScanSessionShelfRepository extends JpaRepository<ScanSessionShe
             group by ss.id.scanSessionId
             """)
     List<ScanSessionFloor> findMinFloorsBySessionIds(@Param("sessionIds") Collection<Long> sessionIds);
+
+    /**
+     * 회차의 점검 대상 서가를 한 번에 조회한다. 서가 코드 목록을 바인딩하지 않으므로 서가 수가 많아도 쿼리 파라미터
+     * 한도에 걸리지 않는다. 서가의 사용 여부·자료실은 조건에 넣지 않는다(대상 여부는 회차 등록 정보가 기준).
+     */
+    @Query("""
+            select s from ScanSessionShelf ss join Shelf s on s.id = ss.id.shelfId
+            where ss.id.scanSessionId = :scanSessionId
+            """)
+    List<Shelf> findShelvesByScanSessionId(@Param("scanSessionId") Long scanSessionId);
 }

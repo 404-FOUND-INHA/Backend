@@ -42,6 +42,7 @@ EC2 + Docker Compose 배포 절차는 [docs/DEPLOY.md](docs/DEPLOY.md) 를 본�
 | GET | `/api/books` · `/{id}` · `/{id}/histories` | 로그인 |
 | POST | `/api/books` | 사서 |
 | PATCH | `/api/books/{id}` | 로그인 |
+| GET · POST | `/api/books/{id}/condition-reports` | 로그인 (근로생도 등록 가능) |
 | GET | `/api/evaluation/settings` | 로그인 (근로생은 읽기 전용) |
 | PUT | `/api/evaluation/settings` | 사서 |
 
