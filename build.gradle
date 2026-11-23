@@ -43,4 +43,7 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+	// 운영(Dockerfile -Duser.timezone=Asia/Seoul)·hibernate.jdbc.time_zone 과 맞춘다. 실행 환경(CI=UTC)에 따라
+	// JDBC 로 읽은 시각이 달라지는 것을 막는다.
+	systemProperty 'user.timezone', 'Asia/Seoul'
 }
