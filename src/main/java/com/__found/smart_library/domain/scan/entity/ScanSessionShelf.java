@@ -9,6 +9,7 @@ import jakarta.persistence.PostLoad;
 import jakarta.persistence.PostPersist;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
+import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -32,6 +33,14 @@ public class ScanSessionShelf implements Persistable<ScanSessionShelfId> {
     @Column(name = "scan_status", nullable = false, length = 30)
     private ScanShelfStatus scanStatus;
 
+    /** Vision 이 보고한 이 서가의 관측 도서 수(결과 수신 후). */
+    @Column(name = "detected_book_count")
+    private Integer detectedBookCount;
+
+    /** 촬영 시각. 이 서가 관측의 detectedAt 최댓값이며 관측에 시각이 없으면 null. */
+    @Column(name = "scanned_at")
+    private LocalDateTime scannedAt;
+
     @Getter(AccessLevel.NONE)
     @Transient
     private boolean newEntity = true;
@@ -43,6 +52,13 @@ public class ScanSessionShelf implements Persistable<ScanSessionShelfId> {
 
     public static ScanSessionShelf waiting(Long scanSessionId, Long shelfId) {
         return new ScanSessionShelf(scanSessionId, shelfId);
+    }
+
+    /** Vision 결과를 수신해 저장했음을 기록한다. */
+    public void receiveResult(int detectedBookCount, LocalDateTime scannedAt) {
+        this.scanStatus = ScanShelfStatus.RESULT_RECEIVED;
+        this.detectedBookCount = detectedBookCount;
+        this.scannedAt = scannedAt;
     }
 
     @Override

@@ -9,7 +9,9 @@ import java.util.Optional;
 public interface CallNumberParser {
 
     /**
-     * @return 분류기호·도서기호를 모두 추출하면 그 결과, 라벨을 해석할 수 없으면 빈 값
+     * @return 분류기호·도서기호를 모두 추출하면 그 결과, 라벨을 해석할 수 없으면 빈 값(OCR 인식 실패로 처리된다).
+     *         결과 값은 저장 컬럼 길이(분류기호·도서기호 50자, 복본기호 30자) 이내여야 하며, 이를 넘기면 {@link ParsedCallNumber}
+     *         생성 시 예외가 나 요청 전체가 실패한다(파서 계약 위반은 OCR 인식 실패로 숨기지 않는다).
      */
     Optional<ParsedCallNumber> parse(String rawLabel);
 }

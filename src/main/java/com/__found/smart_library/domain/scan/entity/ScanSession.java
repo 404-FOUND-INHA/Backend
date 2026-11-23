@@ -64,4 +64,15 @@ public class ScanSession extends BaseEntity {
                                      Long createdBy) {
         return new ScanSession(sessionName, targetArea, plannedStartDate, createdBy);
     }
+
+    /**
+     * Vision 결과의 분석·저장이 끝나 사서 검토를 시작할 수 있는 상태(REVIEW)로 바꾼다.
+     * 진행 중(IN_PROGRESS)인 회차만 전이할 수 있다.
+     */
+    public void markReviewReady() {
+        if (this.status != ScanSessionStatus.IN_PROGRESS) {
+            throw new IllegalStateException("진행 중인 회차만 검토 상태로 바꿀 수 있습니다. 현재 상태=" + this.status);
+        }
+        this.status = ScanSessionStatus.REVIEW;
+    }
 }
