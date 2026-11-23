@@ -23,5 +23,31 @@ COMMENT ON COLUMN evaluation_profile.created_at IS '설정 시각';
 -- 활성 버전은 항상 최대 1개
 CREATE UNIQUE INDEX uk_evaluation_profile_active ON evaluation_profile ((TRUE)) WHERE is_active;
 
+-- 이미 가중치 행이 있는 DB(수동 입력 등)에서도 FK 를 걸 수 있도록 부모 행을 먼저 만든다. 가중치 행은 지우지 않는다.
+-- 빈 DB 에서는 아래 두 문장이 아무 행도 만들지 않는다.
+-- 기준 점수는 기록이 없으므로 기본값(50)으로 채우고, 설정자·시각은 가중치 행에서 가져온다.
+INSERT INTO evaluation_profile (profile_version, disposal_threshold, is_active, configured_by, created_at)
+SELECT w.profile_version, 50.00, FALSE, MIN(w.configured_by), MIN(w.created_at)
+FROM evaluation_criterion_weight w
+GROUP BY w.profile_version;
+
+-- 활성 버전은 최대 1개: 활성 가중치를 가진 버전 중 가장 최근에 만든 것만 활성으로 한다.
+UPDATE evaluation_profile
+SET is_active = TRUE
+WHERE profile_version = (
+  SELECT w.profile_version
+  FROM evaluation_criterion_weight w
+  WHERE w.is_active
+  GROUP BY w.profile_version
+  ORDER BY MAX(w.created_at) DESC, w.profile_version DESC
+  LIMIT 1
+);
+
+-- 가중치 행의 활성 여부를 버전의 활성 여부와 맞춘다(활성 버전의 행만 활성).
+UPDATE evaluation_criterion_weight w
+SET is_active = p.is_active
+FROM evaluation_profile p
+WHERE p.profile_version = w.profile_version;
+
 ALTER TABLE evaluation_criterion_weight
   ADD CONSTRAINT fk_weight_profile FOREIGN KEY (profile_version) REFERENCES evaluation_profile (profile_version);

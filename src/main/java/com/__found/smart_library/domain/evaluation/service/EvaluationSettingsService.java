@@ -59,13 +59,22 @@ public class EvaluationSettingsService {
         profileRepository.deactivateAll();
         weightRepository.deactivateAll();
 
-        String version = "v" + (profileRepository.count() + 1);
+        String version = nextVersion();
         EvaluationProfile profile = profileRepository.saveAndFlush(EvaluationProfile.activate(
                 version, request.disposalThreshold().setScale(2), userId));
         weightRepository.saveAll(weights.entrySet().stream()
                 .map(e -> EvaluationCriterionWeight.activate(version, e.getKey(), e.getValue(), userId))
                 .toList());
         return EvaluationSettingsResponse.of(profile, toResponse(weights));
+    }
+
+    /** v1, v2 ... 중 아직 쓰지 않은 첫 번호. 기존 DB 에서 가져온 버전 이름과 겹치지 않게 존재 여부를 확인한다. */
+    private String nextVersion() {
+        long n = profileRepository.count() + 1;
+        while (profileRepository.existsById("v" + n)) {
+            n++;
+        }
+        return "v" + n;
     }
 
     /** 모든 평가축이 정확히 한 번씩 있고 합이 1.0 인지 확인하고 평가축 순서대로 정리한다. */
