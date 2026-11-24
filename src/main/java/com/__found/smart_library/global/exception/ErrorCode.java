@@ -43,6 +43,8 @@ public enum ErrorCode {
     SCAN_RESULT_NOT_RECEIVABLE(HttpStatus.CONFLICT, "SCAN_006", "결과를 수신할 수 없는 회차 상태입니다."),
     SCAN_SHELF_NOT_IN_SESSION(HttpStatus.NOT_FOUND, "SCAN_007", "해당 회차의 점검 대상 서가가 아닙니다."),
     SCAN_OBSERVATION_NOT_FOUND(HttpStatus.NOT_FOUND, "SCAN_008", "해당 회차의 관측 도서를 찾을 수 없습니다."),
+    SCAN_SESSION_NOT_FINALIZABLE(HttpStatus.CONFLICT, "SCAN_009", "확정할 수 있는 회차 상태가 아닙니다."),
+    SCAN_REVIEW_INCOMPLETE(HttpStatus.CONFLICT, "SCAN_010", "검토가 끝나지 않은 관측이 있어 확정할 수 없습니다."),
 
     // Review (사서 검토)
     REVIEW_NOT_FOUND(HttpStatus.NOT_FOUND, "REVIEW_001", "검토 기록을 찾을 수 없습니다."),
