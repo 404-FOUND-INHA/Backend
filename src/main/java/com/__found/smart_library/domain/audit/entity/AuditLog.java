@@ -29,10 +29,12 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 public class AuditLog {
 
     public static final String ENTITY_BOOK = "BOOK";
+    public static final String ENTITY_REVIEW = "REVIEW";
 
     public static final String ACTION_CREATE = "CREATE";
     public static final String ACTION_UPDATE = "UPDATE";
     public static final String ACTION_STATUS_CHANGE = "STATUS_CHANGE";
+    public static final String ACTION_DELETE = "DELETE";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

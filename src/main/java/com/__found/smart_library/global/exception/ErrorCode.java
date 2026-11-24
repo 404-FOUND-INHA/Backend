@@ -44,6 +44,12 @@ public enum ErrorCode {
     SCAN_SHELF_NOT_IN_SESSION(HttpStatus.NOT_FOUND, "SCAN_007", "해당 회차의 점검 대상 서가가 아닙니다."),
     SCAN_OBSERVATION_NOT_FOUND(HttpStatus.NOT_FOUND, "SCAN_008", "해당 회차의 관측 도서를 찾을 수 없습니다."),
 
+    // Review (사서 검토)
+    REVIEW_NOT_FOUND(HttpStatus.NOT_FOUND, "REVIEW_001", "검토 기록을 찾을 수 없습니다."),
+    REVIEW_SESSION_NOT_OPEN(HttpStatus.CONFLICT, "REVIEW_002", "검토할 수 있는 회차 상태가 아닙니다."),
+    REVIEW_NOT_REQUIRED(HttpStatus.CONFLICT, "REVIEW_003", "사서 검토가 필요한 관측이 아닙니다."),
+    REVIEW_BOOK_ALREADY_ASSIGNED(HttpStatus.CONFLICT, "REVIEW_004", "같은 회차에서 이미 다른 관측에 확정된 도서입니다."),
+
     // Evaluation (도서 평가)
     EVALUATION_INVALID_WEIGHTS(HttpStatus.BAD_REQUEST, "EVAL_001", "평가 가중치 설정이 올바르지 않습니다.");
 

@@ -45,6 +45,8 @@ EC2 + Docker Compose 배포 절차는 [docs/DEPLOY.md](docs/DEPLOY.md) 를 본�
 | GET · POST | `/api/books/{id}/condition-reports` | 로그인 (근로생도 등록 가능) |
 | GET | `/api/evaluation/settings` | 로그인 (근로생은 읽기 전용) |
 | PUT | `/api/evaluation/settings` | 사서 |
+| GET | `/api/scan-sessions/{id}/reviews` | 로그인 (검토 필요 관측 목록·진행 현황) |
+| PUT · DELETE | `/api/scan-sessions/{id}/observations/{observationId}/review` | 사서 (검토 저장·취소) |
 
 ## 프로젝트 구조
 ```
