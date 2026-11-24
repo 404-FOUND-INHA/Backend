@@ -114,6 +114,18 @@ public class Book extends BaseEntity {
         this.bookWidthCm = bookWidthCm;
     }
 
+    /**
+     * 장서점검에서 이 도서가 해당 서가에 있는 것으로 확인되었을 때의 반영. 마지막 확인 서가를 관측 서가로 바꾸고,
+     * 소재불명(MISSING)이던 도서는 찾은 것이므로 정상(NORMAL)으로 되돌린다. 훼손·제적 상태는 바꾸지 않는다.
+     * 정상 배치 서가(expectedShelf)는 건드리지 않는다.
+     */
+    public void confirmAtShelf(Shelf observedShelf) {
+        this.currentShelf = observedShelf;
+        if (this.lifecycleStatus == LifecycleStatus.MISSING) {
+            this.lifecycleStatus = LifecycleStatus.NORMAL;
+        }
+    }
+
     /** PATCH 용 부분 수정: null 로 들어온 값은 기존 값을 유지한다. registrationNo 는 바꿀 수 없다. */
     public void applyPatch(String isbn, String title, String author, String publisher, Integer publishedYear,
                            String edition, String callNumberRaw, String classificationNo, String bookSymbol,
