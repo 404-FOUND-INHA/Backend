@@ -43,6 +43,19 @@ class BackendMetricCalculatorTest {
         }
 
         @Test
+        @DisplayName("raw 는 최근 대출 건수이고 DECIMAL(5,2) 를 넘지 않는다(근거 문장에는 실제 건수가 남는다)")
+        void rawIsCappedAtColumnMax() {
+            assertThat(calculator.demand(new DemandInput(999, TODAY, 999), TODAY).rawScore())
+                    .isEqualByComparingTo("999.00");
+            CriterionScore thousand = calculator.demand(new DemandInput(1000, TODAY, 1000), TODAY);
+            assertThat(thousand.rawScore()).isEqualByComparingTo("999.99");
+            assertThat(thousand.normalizedScore()).isEqualByComparingTo("0.00");
+            assertThat(thousand.basis()).contains("대출 1000건");
+            assertThat(calculator.demand(new DemandInput(Integer.MAX_VALUE, TODAY, Integer.MAX_VALUE), TODAY)
+                    .rawScore()).isEqualByComparingTo("999.99");
+        }
+
+        @Test
         @DisplayName("최근 대출이 포화 건수 이상이고 오늘 빌려갔다면 0 이다")
         void saturatedAndRecent_is0() {
             assertThat(calculator.demand(new DemandInput(5, TODAY, 50), TODAY).normalizedScore())

@@ -279,6 +279,34 @@ class CompositeEvaluationApiTest {
         assertThat((String) row.get("evaluation_reason")).contains("- 희소성 점수 없음, 가중치 0이라 제외");
     }
 
+    @Test
+    @DisplayName("최근 대출이 1,000건인 도서가 있어도 회차 전체 평가가 실패하지 않고 수요성 원점수는 999.99로 저장된다")
+    void thousandRecentLoansDoNotBreakTheSession() throws Exception {
+        Long busy = confirmedBook("대출많음");
+        Long quiet = confirmedBook("한가함");
+        jev(sessionId, busy, "10", "10");
+        jev(sessionId, quiet, "10", "10");
+        jdbc.update("insert into loan (book_id, loaned_at, returned_at, status, created_at, updated_at) "
+                + "select ?, now() - interval '1 day', now(), 'RETURNED', now(), now() from generate_series(1, 1000)",
+                busy);
+        jdbc.update("update book set total_loan_count = 1000, last_loan_date = current_date where book_id = ?", busy);
+        em.flush();
+        em.clear();
+
+        JsonNode data = data(evaluate(sessionId, librarian()).andExpect(status().isOk()));
+        em.flush();
+
+        assertThat(data.get("total").asInt()).isEqualTo(2);
+        assertThat(data.get("created").asInt()).isEqualTo(2);
+        Map<String, Object> demand = jdbc.queryForMap("select r.raw_score, r.normalized_score "
+                + "from evaluation_criterion_result r where r.evaluation_id = ? and r.criterion_type = 'DEMAND'",
+                backend(busy).get("evaluation_id"));
+        assertThat(demand.get("raw_score")).hasToString("999.99");
+        assertThat(demand.get("normalized_score")).hasToString("0.00");
+        assertThat((String) backend(busy).get("evaluation_reason")).contains("대출 1000건");
+        assertThat(backend(quiet).get("evaluation_type")).isEqualTo("BACKEND");
+    }
+
     // ---- 거부 ----
 
     @Test
