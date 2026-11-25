@@ -24,6 +24,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class BookEvaluation {
 
+    /** 평가 설정이 저장된 적 없을 때(기본 가중치·기준 점수)의 설정 버전 표기. */
+    public static final String DEFAULT_PROFILE_VERSION = "default";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "evaluation_id")
@@ -50,6 +53,10 @@ public class BookEvaluation {
     @Column(name = "candidate_status", nullable = false, length = 30)
     private CandidateStatus candidateStatus;
 
+    /** Backend 종합 평가의 선정 근거(축별 점수·가중치·기여도). JEV 원본 결과에는 없다. */
+    @Column(name = "evaluation_reason", columnDefinition = "text")
+    private String evaluationReason;
+
     @Column(name = "evaluated_at", nullable = false)
     private LocalDateTime evaluatedAt;
 
@@ -60,6 +67,30 @@ public class BookEvaluation {
         this.evaluationType = type;
         this.modelVersion = modelVersion;
         this.candidateStatus = candidateStatus;
+        this.evaluatedAt = evaluatedAt;
+    }
+
+    /**
+     * Backend 종합 평가. modelVersion 에는 계산에 쓴 평가 설정 버전(가중치·기준 점수)을 기록하고,
+     * 설정이 저장된 적 없는 기본값이면 {@value #DEFAULT_PROFILE_VERSION} 이다.
+     */
+    public static BookEvaluation forBackend(Long bookId, Long scanSessionId, String profileVersion,
+                                            BigDecimal finalScore, CandidateStatus candidateStatus, String reason,
+                                            LocalDateTime evaluatedAt) {
+        BookEvaluation evaluation = new BookEvaluation(bookId, scanSessionId, EvaluationType.BACKEND, profileVersion,
+                candidateStatus, evaluatedAt);
+        evaluation.finalScore = finalScore;
+        evaluation.evaluationReason = reason;
+        return evaluation;
+    }
+
+    /** 다시 계산한 결과로 바꾼다(Backend 종합 평가 전용). */
+    public void recalculate(String profileVersion, BigDecimal finalScore, CandidateStatus candidateStatus,
+                            String reason, LocalDateTime evaluatedAt) {
+        this.modelVersion = profileVersion;
+        this.finalScore = finalScore;
+        this.candidateStatus = candidateStatus;
+        this.evaluationReason = reason;
         this.evaluatedAt = evaluatedAt;
     }
 

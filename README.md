@@ -51,6 +51,7 @@ EC2 + Docker Compose 배포 절차는 [docs/DEPLOY.md](docs/DEPLOY.md) 를 본�
 | POST | `/api/scan-sessions/{id}/jev-evaluations` | 사서 (점검 확정된 회차의 도서를 JEV 에 평가시켜 결과 저장, 재호출 안전) |
 | GET | `/api/scan-sessions/{id}/missing-candidates` | 로그인 (소재불명 후보 목록) |
 | PUT | `/api/missing-candidates/{id}/review` | 로그인 (현장 확인 결과 기록) |
+| POST | `/api/scan-sessions/{id}/evaluations` | 사서 (확정된 회차의 도서별 종합 점수·폐기 검토 후보 판정과 선정 근거 저장, 재실행 시 달라진 결과만 갱신) |
 
 ## 프로젝트 구조
 ```

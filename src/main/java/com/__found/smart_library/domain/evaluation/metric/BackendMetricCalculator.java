@@ -61,7 +61,7 @@ public class BackendMetricCalculator {
                 .add(recencyPart.multiply(rule.getRecencyWeight()));
         String basis = "최근 " + rule.getWindowYears() + "년 대출 " + in.recentLoanCount() + "건, " + lastText
                 + " (누적 " + in.totalLoanCount() + "건)";
-        return new CriterionScore(CriterionType.DEMAND, scale(BigDecimal.valueOf(in.recentLoanCount())),
+        return new CriterionScore(CriterionType.DEMAND, scale(BigDecimal.valueOf(in.recentLoanCount()).min(RAW_MAX)),
                 scale(clamp(score)), basis);
     }
 

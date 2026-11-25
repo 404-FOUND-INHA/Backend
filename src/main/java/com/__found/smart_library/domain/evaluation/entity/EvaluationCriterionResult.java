@@ -74,6 +74,14 @@ public class EvaluationCriterionResult {
         this.probabilityDistribution = probabilityDistribution;
     }
 
+    /** Backend 가 계산한 평가축 결과. 신뢰도·등급·확률 분포는 없다. */
+    public static EvaluationCriterionResult ofBackend(Long evaluationId, CriterionType criterionType,
+                                                      String profileVersion, BigDecimal rawScore,
+                                                      BigDecimal normalizedScore) {
+        return new EvaluationCriterionResult(evaluationId, criterionType, EvaluationType.BACKEND, profileVersion,
+                rawScore, normalizedScore, null, null, null);
+    }
+
     public static EvaluationCriterionResult ofJev(Long evaluationId, CriterionType criterionType, String modelVersion,
                                                   BigDecimal rawScore, BigDecimal normalizedScore,
                                                   BigDecimal confidence, int selectedGrade,

@@ -7,8 +7,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.__found.smart_library.domain.book.repository.BookRepository;
 import com.__found.smart_library.domain.evaluation.repository.BookEvaluationRepository;
-import com.__found.smart_library.domain.observation.repository.BookObservationRepository;
-import com.__found.smart_library.domain.review.repository.ReviewRepository;
+import com.__found.smart_library.domain.evaluation.service.SessionBookResolver;
 import com.__found.smart_library.domain.scan.repository.ScanSessionRepository;
 import com.__found.smart_library.global.exception.BusinessException;
 import com.__found.smart_library.global.exception.ErrorCode;
@@ -27,8 +26,7 @@ class JevEvaluationServiceTest {
         ScanSessionRepository sessions = mock(ScanSessionRepository.class);
         JevEvaluationService service = new JevEvaluationService(noKey, client, mock(JevRequestFactory.class),
                 new JevResultMapper(), mock(JevEvaluationWriter.class), sessions,
-                mock(BookObservationRepository.class), mock(ReviewRepository.class), mock(BookRepository.class),
-                mock(BookEvaluationRepository.class));
+                mock(SessionBookResolver.class), mock(BookRepository.class), mock(BookEvaluationRepository.class));
 
         assertThatThrownBy(() -> service.evaluateSession(1L))
                 .isInstanceOfSatisfying(BusinessException.class, e -> {
