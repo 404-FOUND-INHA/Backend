@@ -1,6 +1,7 @@
 package com.__found.smart_library.domain.condition.repository;
 
 import com.__found.smart_library.domain.condition.entity.BookConditionReport;
+import java.util.Collection;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -8,4 +9,7 @@ public interface BookConditionReportRepository extends JpaRepository<BookConditi
 
     /** 최신 기록이 먼저. 같은 시각이면 나중에 저장된 것이 먼저. */
     List<BookConditionReport> findByBookIdOrderByReportedAtDescIdDesc(Long bookId);
+
+    /** 여러 도서의 오손 기록(평가 지표 계산용). */
+    List<BookConditionReport> findByBookIdIn(Collection<Long> bookIds);
 }

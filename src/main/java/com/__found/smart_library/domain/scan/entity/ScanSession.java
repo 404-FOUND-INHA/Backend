@@ -43,6 +43,9 @@ public class ScanSession extends BaseEntity {
 
     private LocalDateTime finalizedAt;
 
+    /** 회차를 확정한 사서(app_user.user_id). */
+    private Long finalizedBy;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private ScanSessionStatus status;
@@ -74,5 +77,18 @@ public class ScanSession extends BaseEntity {
             throw new IllegalStateException("진행 중인 회차만 검토 상태로 바꿀 수 있습니다. 현재 상태=" + this.status);
         }
         this.status = ScanSessionStatus.REVIEW;
+    }
+
+    /**
+     * 사서 검토가 끝난 회차를 확정(COMPLETED)한다. 확정된 회차는 검토 결과를 바꿀 수 없다.
+     * 검토 중(REVIEW)인 회차만 확정할 수 있다.
+     */
+    public void finalizeBy(Long userId, LocalDateTime finalizedAt) {
+        if (this.status != ScanSessionStatus.REVIEW) {
+            throw new IllegalStateException("검토 중인 회차만 확정할 수 있습니다. 현재 상태=" + this.status);
+        }
+        this.status = ScanSessionStatus.COMPLETED;
+        this.finalizedAt = finalizedAt;
+        this.finalizedBy = userId;
     }
 }

@@ -35,6 +35,22 @@ app:
   cors:
     # 쉼표로 구분한 허용 origin. 비어 있으면 모두 거부 (.env 의 CORS_ALLOWED_ORIGINS)
     allowed-origins: ${CORS_ALLOWED_ORIGINS:}
+  evaluation:
+    # Backend 평가 지표(수요성·물리적 상태·중복성) 점수 규칙. 평가표가 확정되기 전의 임시 기준이며, 아래 값은 기본값이다.
+    # 점수는 0~100 이고 높을수록 폐기 검토 필요도가 높다. 값을 바꿀 때만 주석을 풀어 쓴다.
+    # metrics:
+    #   demand:
+    #     window-years: 3             # 최근 대출 건수를 세는 기간(년)
+    #     loan-saturation: 5          # 기간 내 이 건수 이상 대출되면 대출 건수 점수 0
+    #     recent-loan-weight: 0.6     # 대출 건수 점수 비중 (두 비중의 합은 1)
+    #     recency-weight: 0.4         # 마지막 대출 경과 점수 비중
+    #   condition:
+    #     severity-score: {low: 30, medium: 60, high: 90}
+    #     type-factor: {stain: 0.6, torn: 0.8, water-damage: 1.0, binding-damage: 1.0}
+    #     default-severity: medium    # 심각도가 비어 있는 기록에 적용
+    #     extra-report-bonus: 5       # 가장 나쁜 기록 외 기록 1건당 가산점
+    #   duplication:
+    #     saturation-copies: 4        # 같은 청구기호 도서가 이 권수 이상이면 100
   vision:
     # Vision 서버 전용 API Key (32자 이상). 비어 있으면 Vision 결과 수신 API 는 모든 요청을 거부한다.
     # 반드시 .env 의 VISION_API_KEY 로 주입 (코드/커밋에 넣지 말 것)
