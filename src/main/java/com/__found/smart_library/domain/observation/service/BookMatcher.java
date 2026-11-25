@@ -32,6 +32,11 @@ public class BookMatcher {
     public static final int MAX_CANDIDATES = 3;
 
     private final BookRepository bookRepository;
+    private final OcrTextMatcher ocrTextMatcher;
+
+    public MatchResult matchText(String text, String copyMark) {
+        return ocrTextMatcher.match(text, copyMark);
+    }
 
     /** 결과는 입력과 같은 순서다. */
     @Transactional(readOnly = true)

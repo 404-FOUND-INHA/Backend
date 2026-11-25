@@ -2,15 +2,12 @@ package com.__found.smart_library.domain.observation.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MvcResult;
 
-/**
- * 운영과 같은 구성(CallNumberParser 구현 빈 없음). 신규 수신은 성공한 것처럼 처리하지 않고 503 으로 실패해야 하며,
- * 이미 수신한 결과의 동일 재전송은 파서가 필요 없으므로 영향을 받지 않는다. 이 클래스는 테스트 파서를 등록하지 않는다.
- */
 class VisionObservationParserAbsentApiTest extends VisionReceiveTestSupport {
 
     @Test
@@ -54,5 +51,41 @@ class VisionObservationParserAbsentApiTest extends VisionReceiveTestSupport {
         assertThat(status(result)).isEqualTo(200);
         assertThat(json(result).get("data").get("status").asString()).isEqualTo("REVIEW");
         assertThat(snapshot(fx.sessionId())).isEqualTo(before);
+    }
+
+    @Test
+    void rawTextResolvesPartialCopyAndChecksReplayEvidence() throws Exception {
+        Fixture fx = fixture(1);
+        Long shelfId = fx.shelfIds().get(0);
+        Long original = book("K", null, shelfId, "NORMAL");
+        Long copy = book("K", "c.2", shelfId, "NORMAL");
+        String text = cls("K") + " " + sym("K");
+        var partial = new HashMap<String, Object>(Map.of("detectedOrder", 2, "ocrText", text, "partialCopyMark", ".2"));
+        var request = body(fx.sessionId(), shelf(fx.shelfCodes().get(0),
+                Map.of("detectedOrder", 1, "ocrText", text), partial, Map.of("detectedOrder", 3, "ocrText", "")));
+
+        assertThat(status(send(request))).isEqualTo(201);
+        var rows = observations(fx.sessionId());
+        assertThat(rows.get(0).get("book_id")).isEqualTo(original);
+        assertThat(rows.get(1).get("book_id")).isEqualTo(copy);
+        assertThat(rows.get(2).get("book_id")).isNull();
+        assertThat(status(send(request))).isEqualTo(200);
+        partial.remove("partialCopyMark");
+        assertThat(status(send(request))).isEqualTo(409);
+        partial.put("partialCopyMark", ".2");
+        partial.put("ocrText", text + " altered");
+        assertThat(status(send(request))).isEqualTo(409);
+        assertThat(observations(fx.sessionId())).isEqualTo(rows);
+    }
+
+    @Test
+    void rawTextBreaksRemainingTiesByBookId() throws Exception {
+        Fixture fx = fixture(1);
+        Long first = book("T", "c.2", fx.shelfIds().get(0), "NORMAL");
+        book("T", "c.3", fx.shelfIds().get(0), "NORMAL");
+        var request = body(fx.sessionId(), shelf(fx.shelfCodes().get(0),
+                Map.of("detectedOrder", 1, "ocrText", cls("T") + sym("T"))));
+        assertThat(status(send(request))).isEqualTo(201);
+        assertThat(observations(fx.sessionId()).get(0).get("book_id")).isEqualTo(first);
     }
 }

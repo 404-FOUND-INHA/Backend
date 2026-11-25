@@ -53,6 +53,12 @@ public class BookObservation {
     @Column(name = "detected_copy_number", length = 30)
     private String detectedCopyNumber;
 
+    @Column(name = "ocr_text", length = 2048)
+    private String ocrText;
+
+    @Column(name = "partial_copy_mark", length = 30)
+    private String partialCopyMark;
+
     @Column(name = "detected_title", length = 255)
     private String detectedTitle;
 
@@ -82,7 +88,7 @@ public class BookObservation {
     @Builder
     private BookObservation(Long scanSessionId, Long bookId, Long detectedShelfId, String detectedLabelRaw,
                             String detectedClassificationNo, String detectedBookSymbol, String detectedCopyNumber,
-                            String detectedTitle, Integer detectedOrder, BigDecimal xPositionCm,
+                            String ocrText, String partialCopyMark, String detectedTitle, Integer detectedOrder, BigDecimal xPositionCm,
                             BigDecimal matchConfidence, ObservationAnalysisStatus analysisStatus,
                             ObservationStatusReason statusReason, LocalDateTime detectedAt,
                             LocalDateTime receivedAt) {
@@ -93,6 +99,8 @@ public class BookObservation {
         this.detectedClassificationNo = detectedClassificationNo;
         this.detectedBookSymbol = detectedBookSymbol;
         this.detectedCopyNumber = detectedCopyNumber;
+        this.ocrText = ocrText;
+        this.partialCopyMark = partialCopyMark;
         this.detectedTitle = detectedTitle;
         this.detectedOrder = detectedOrder;
         this.xPositionCm = xPositionCm;

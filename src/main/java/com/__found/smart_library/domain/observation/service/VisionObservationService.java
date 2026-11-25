@@ -78,7 +78,7 @@ public class VisionObservationService {
 
     /** 정규화된 관측 1건(반올림·절삭 적용 후, 저장과 비교에 같은 값을 쓴다). */
     private record Item(int detectedOrder, String label, String title, BigDecimal xPositionCm,
-                        LocalDateTime detectedAt) {
+                        LocalDateTime detectedAt, String ocrText, String partialCopyMark) {
     }
 
     /** 서가 코드가 회차 대상 서가의 ID 로 확정된 결과. */
@@ -122,7 +122,7 @@ public class VisionObservationService {
             for (Item item : shelf.items()) {
                 shelfIds.add(shelf.shelfId());
                 items.add(item);
-                inputs.add(new AnalysisInput(item.label(), shelf.shelfId()));
+                inputs.add(new AnalysisInput(item.label(), shelf.shelfId(), item.ocrText(), item.partialCopyMark()));
             }
         }
         List<ObservationAnalysis> analyses = analyzer.analyze(inputs);
@@ -165,6 +165,8 @@ public class VisionObservationService {
                 .detectedShelfId(shelfId)
                 .detectedOrder(item.detectedOrder())
                 .detectedLabelRaw(item.label())
+                .ocrText(item.ocrText())
+                .partialCopyMark(item.partialCopyMark())
                 .detectedTitle(item.title())
                 .xPositionCm(item.xPositionCm())
                 .detectedAt(item.detectedAt())
@@ -197,7 +199,7 @@ public class VisionObservationService {
         for (ShelfItems shelf : shelves) {
             for (Item item : shelf.items()) {
                 requested.add(new StoredObservationInput(shelf.shelfId(), item.detectedOrder(), item.label(),
-                        item.title(), item.xPositionCm(), item.detectedAt()));
+                        item.title(), item.xPositionCm(), item.detectedAt(), item.ocrText(), item.partialCopyMark()));
                 requestedCount++;
             }
         }
@@ -240,7 +242,8 @@ public class VisionObservationService {
                 }
                 items.add(new Item(o.detectedOrder(), o.detectedLabelRaw(), o.detectedTitle(),
                         normalizeX(o.xPositionCm(), shelf.shelfCode()),
-                        o.detectedAt() == null ? null : o.detectedAt().truncatedTo(ChronoUnit.MICROS)));
+                        o.detectedAt() == null ? null : o.detectedAt().truncatedTo(ChronoUnit.MICROS),
+                        o.ocrText(), o.partialCopyMark()));
             }
             items.sort(Comparator.comparingInt(Item::detectedOrder));
             result.add(new ShelfItems(shelf.shelfCode(), null, items));

@@ -14,7 +14,8 @@ public interface BookObservationRepository extends JpaRepository<BookObservation
     /** 재전송 비교용: 저장된 Vision 입력값만 엔티티 로드 없이 읽는다. */
     @Query("""
             select new com.__found.smart_library.domain.observation.repository.StoredObservationInput(
-                o.detectedShelfId, o.detectedOrder, o.detectedLabelRaw, o.detectedTitle, o.xPositionCm, o.detectedAt)
+                o.detectedShelfId, o.detectedOrder, o.detectedLabelRaw, o.detectedTitle, o.xPositionCm, o.detectedAt,
+                o.ocrText, o.partialCopyMark)
             from BookObservation o where o.scanSessionId = :scanSessionId
             """)
     List<StoredObservationInput> findInputsByScanSessionId(@Param("scanSessionId") Long scanSessionId);
