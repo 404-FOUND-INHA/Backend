@@ -52,6 +52,10 @@ EC2 + Docker Compose 배포 절차는 [docs/DEPLOY.md](docs/DEPLOY.md) 를 본�
 | GET | `/api/scan-sessions/{id}/missing-candidates` | 로그인 (소재불명 후보 목록) |
 | PUT | `/api/missing-candidates/{id}/review` | 로그인 (현장 확인 결과 기록) |
 | POST | `/api/scan-sessions/{id}/evaluations` | 사서 (확정된 회차의 도서별 종합 점수·폐기 검토 후보 판정과 선정 근거 저장, 재실행 시 달라진 결과만 갱신) |
+| GET | `/api/scan-sessions/{id}/evaluations` | 로그인 (종합 평가 목록·현황, 판정·점수 필터, 점수 높은 순) |
+| GET | `/api/scan-sessions/{id}/disposal-candidates` | 로그인 (폐기 검토 후보 목록, 서가 위치 포함) |
+| GET | `/api/scan-sessions/{id}/disposal-candidates/by-shelf` | 로그인 (서가별 폐기 검토 후보, 3D 시각화용, `shelfId` 선택) |
+| GET | `/api/scan-sessions/{id}/books/{bookId}/evaluation` | 로그인 (도서 평가 상세: 종합 결과·선정 근거·평가축별 JEV/Backend 결과) |
 
 ## 프로젝트 구조
 ```
