@@ -30,6 +30,7 @@ public class AuditLog {
 
     public static final String ENTITY_BOOK = "BOOK";
     public static final String ENTITY_REVIEW = "REVIEW";
+    public static final String ENTITY_MISSING_CANDIDATE = "MISSING_CANDIDATE";
 
     public static final String ACTION_CREATE = "CREATE";
     public static final String ACTION_UPDATE = "UPDATE";

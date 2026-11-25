@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
  *   <li>locationChanged: 그중 마지막 확인 서가가 실제로 바뀐 도서 수</li>
  *   <li>restoredFromMissing: 소재불명이었다가 찾아서 정상으로 되돌린 도서 수</li>
  *   <li>unidentified / excluded: 사서가 식별 불가·제외로 처리해 BOOK 에 반영하지 않은 관측 수</li>
+ *   <li>missingCandidates: 점검에서 발견되지 않아 새로 만든 소재불명 후보 수</li>
  * </ul>
  */
 public record FinalizeResponse(
@@ -23,7 +24,8 @@ public record FinalizeResponse(
 ) {
 
     public record Summary(long confirmedBooks, long locationChanged, long restoredFromMissing,
-                          long unidentified, long excluded) {
+                          long unidentified, long excluded,
+                          long missingCandidates) {
     }
 
     public static FinalizeResponse of(ScanSession session, Summary summary) {

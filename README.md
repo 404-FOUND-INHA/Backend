@@ -48,6 +48,8 @@ EC2 + Docker Compose 배포 절차는 [docs/DEPLOY.md](docs/DEPLOY.md) 를 본�
 | GET | `/api/scan-sessions/{id}/reviews` | 로그인 (검토 필요 관측 목록·진행 현황) |
 | PUT · DELETE | `/api/scan-sessions/{id}/observations/{observationId}/review` | 사서 (검토 저장·취소) |
 | POST | `/api/scan-sessions/{id}/finalize` | 사서 (검토 완료 후 회차 확정, BOOK 반영) |
+| GET | `/api/scan-sessions/{id}/missing-candidates` | 로그인 (소재불명 후보 목록) |
+| PUT | `/api/missing-candidates/{id}/review` | 로그인 (현장 확인 결과 기록) |
 
 ## 프로젝트 구조
 ```
