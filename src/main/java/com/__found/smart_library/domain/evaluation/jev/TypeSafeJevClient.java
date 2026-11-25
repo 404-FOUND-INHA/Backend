@@ -1,5 +1,7 @@
 package com.__found.smart_library.domain.evaluation.jev;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.time.Duration;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.ResourceAccessException;
@@ -52,13 +54,28 @@ public class TypeSafeJevClient implements JevClient {
             } catch (ResourceAccessException e) {
                 failure = new JevCallException("JEV 호출 실패(연결 실패 또는 시간 초과)", null, true, e);
             } catch (RestClientException e) {
-                throw new JevCallException("JEV 응답을 해석할 수 없습니다.", null, false, e);
+                // 헤더를 받은 뒤 본문을 읽다가 연결이 끊기거나 시간 초과가 나면 ResourceAccessException 이 아니라 이 예외로 온다.
+                if (hasIoCause(e)) {
+                    failure = new JevCallException("JEV 호출 실패(응답 수신 중 연결 실패 또는 시간 초과)", null, true, e);
+                } else {
+                    throw new JevCallException("JEV 응답을 해석할 수 없습니다.", null, false, e);
+                }
             }
             if (!failure.isRetryable() || attempt >= maxAttempts) {
                 throw failure;
             }
             pause(attempt, failure);
         }
+    }
+
+    /** 원인 중에 입출력 오류(연결 끊김·시간 초과)가 있는지. 잘못된 JSON 은 입출력 오류가 아니므로 해당하지 않는다. */
+    private static boolean hasIoCause(Throwable error) {
+        for (Throwable cause = error; cause != null; cause = cause.getCause()) {
+            if (cause instanceof IOException || cause instanceof UncheckedIOException) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean isRetryable(int status) {

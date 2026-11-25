@@ -12,6 +12,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,6 +23,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.mock.http.client.MockClientHttpResponse;
+import org.springframework.test.web.client.ResponseCreator;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.test.web.client.ExpectedCount;
 import org.springframework.web.client.RestClient;
@@ -153,6 +156,55 @@ class TypeSafeJevClientTest {
                     assertThat(e.isRetryable()).isTrue();
                 });
         server.verify();
+    }
+
+    /** 상태와 헤더는 정상으로 주고 본문을 읽는 도중 연결이 끊기는 응답. */
+    private static ResponseCreator bodyReadFails() {
+        return request -> {
+            MockClientHttpResponse response = new MockClientHttpResponse(new InputStream() {
+                @Override
+                public int read() throws IOException {
+                    throw new IOException("connection reset");
+                }
+            }, HttpStatus.OK);
+            response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+            return response;
+        };
+    }
+
+    @Test
+    @DisplayName("본문을 읽다가 연결이 끊기면 재시도하고, 계속 끊기면 응답 코드 없는 재시도 가능 오류로 실패한다")
+    void retriesWhenBodyReadFails() {
+        server.expect(requestTo(URL)).andRespond(bodyReadFails());
+        server.expect(requestTo(URL)).andRespond(withSuccess(OK_BODY, MediaType.APPLICATION_JSON));
+        assertThat(client.evaluate(request()).model()).isEqualTo("jev-1.14.0");
+        assertThat(sleeps).containsExactly(Duration.ofSeconds(1));
+        server.verify();
+
+        server.reset();
+        sleeps.clear();
+        server.expect(ExpectedCount.times(3), requestTo(URL)).andRespond(bodyReadFails());
+        assertThatThrownBy(() -> client.evaluate(request()))
+                .isInstanceOfSatisfying(JevCallException.class, e -> {
+                    assertThat(e.getHttpStatus()).isNull();
+                    assertThat(e.isRetryable()).isTrue();
+                });
+        assertThat(sleeps).containsExactly(Duration.ofSeconds(1), Duration.ofSeconds(2));
+        server.verify();
+    }
+
+    @Test
+    @DisplayName("잘못된 JSON(깨졌거나 중간에 끝남)은 연결 문제가 아니므로 재시도하지 않는다")
+    void doesNotRetryMalformedJson() {
+        for (String body : List.of("not json", "{\"model\":\"jev-1.14.0\",\"answers\":{")) {
+            server.reset();
+            server.expect(requestTo(URL)).andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
+
+            assertThatThrownBy(() -> client.evaluate(request()))
+                    .isInstanceOfSatisfying(JevCallException.class, e -> assertThat(e.isRetryable()).isFalse());
+            server.verify();
+        }
+        assertThat(sleeps).isEmpty();
     }
 
     @Test

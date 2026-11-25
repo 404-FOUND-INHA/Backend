@@ -18,6 +18,7 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.TreeSet;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +33,10 @@ import org.springframework.stereotype.Service;
  * 성공한 도서는 남고 다시 요청하면 실패한 도서만 평가한다.
  *
  * <p>이 메서드는 트랜잭션 없이 실행된다(외부 호출 동안 DB 연결을 잡지 않기 위해). 점검 확정 결과에는 영향을 주지 않는다.
+ *
+ * <p>같은 회차를 동시에 평가하면 같은 도서를 외부에 두 번 호출해 비용이 낭비되므로, 이미 진행 중인 회차의 요청은 호출 없이
+ * 409 로 거부한다. 이 보호는 서버 인스턴스 안에서만 유효하다(서버를 여러 대로 늘리면 중복 호출은 막지 못하고, 저장만 DB
+ * 유니크 인덱스로 한 건으로 지켜진다).
  */
 @Slf4j
 @Service
@@ -54,6 +59,9 @@ public class JevEvaluationService {
     private final BookRepository bookRepository;
     private final BookEvaluationRepository evaluationRepository;
 
+    /** 지금 JEV 평가를 진행 중인 회차. */
+    private final Set<Long> runningSessions = ConcurrentHashMap.newKeySet();
+
     public JevEvaluationResponse evaluateSession(Long sessionId) {
         if (!properties.enabled()) {
             throw new BusinessException(ErrorCode.JEV_NOT_CONFIGURED);
@@ -64,6 +72,17 @@ public class JevEvaluationService {
             throw new BusinessException(ErrorCode.JEV_SESSION_NOT_COMPLETED);
         }
 
+        if (!runningSessions.add(sessionId)) {
+            throw new BusinessException(ErrorCode.JEV_EVALUATION_IN_PROGRESS);
+        }
+        try {
+            return evaluateBooks(sessionId);
+        } finally {
+            runningSessions.remove(sessionId);
+        }
+    }
+
+    private JevEvaluationResponse evaluateBooks(Long sessionId) {
         Set<Long> bookIds = new TreeSet<>(observationRepository.findResolvedBookIds(sessionId, RESOLVED_OBSERVATIONS));
         bookIds.addAll(reviewRepository.findConfirmedBookIds(sessionId, CONFIRMED_REVIEWS));
         if (bookIds.isEmpty()) {
@@ -87,7 +106,7 @@ public class JevEvaluationService {
                 writer.save(sessionId, book.getId(), response.model(), results);
                 succeeded++;
             } catch (DataIntegrityViolationException e) {
-                skipped++;   // 다른 요청이 먼저 같은 도서의 결과를 저장했다.
+                skipped++;   // 다른 서버가 먼저 같은 도서의 결과를 저장했다(서버가 한 대면 일어나지 않는다).
             } catch (JevCallException | JevInvalidResponseException e) {
                 log.warn("JEV 평가 실패 sessionId={} bookId={}: {}", sessionId, book.getId(), e.getMessage());
                 failed.add(new JevEvaluationResponse.Failure(book.getId(), e.getMessage()));

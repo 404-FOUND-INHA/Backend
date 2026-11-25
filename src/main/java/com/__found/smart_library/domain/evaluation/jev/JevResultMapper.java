@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
  *   <li>모델 이름은 필수이며 모델 버전 컬럼 길이(30자) 이내</li>
  *   <li>답은 질문한 평가축({@link JevQuestions#AXES})과 정확히 같은 이름이고 모두 점수형(score)</li>
  *   <li>score 는 0 ~ {@value JevQuestions#MAX_LEVEL}, confidence 는 0 ~ 1</li>
- *   <li>probabilities 의 키는 0 ~ {@value JevQuestions#MAX_LEVEL} 단계 번호이고 값은 0 ~ 1</li>
+ *   <li>probabilities 의 키는 0 ~ {@value JevQuestions#MAX_LEVEL} 단계 번호이고 값은 0 ~ 1이며 합계는 1에 가깝다(±0.05)</li>
  * </ul>
  *
  * <p>정규화 점수는 score ÷ {@value JevQuestions#MAX_LEVEL} × 100 이고, 선택 등급은 확률이 가장 큰 단계이다
@@ -28,6 +28,8 @@ public class JevResultMapper {
     static final int MODEL_VERSION_MAX_LENGTH = 30;
     private static final BigDecimal MAX_LEVEL = BigDecimal.valueOf(JevQuestions.MAX_LEVEL);
     private static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
+    /** 확률 합계가 1에서 이만큼까지 벗어나는 것은 반올림 오차로 본다(소수 둘째 자리 5개 합의 최대 오차 0.025 보다 넉넉하게). */
+    private static final BigDecimal PROBABILITY_SUM_TOLERANCE = new BigDecimal("0.05");
 
     public List<JevCriterionResult> map(JevResponse response) {
         if (response == null || response.model() == null || response.model().isBlank()) {
@@ -85,6 +87,10 @@ public class JevResultMapper {
                 throw new JevInvalidResponseException(axis + " 확률이 0~1 범위를 벗어났습니다.");
             }
             copy.put(String.valueOf(level), probability);
+        }
+        BigDecimal total = copy.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (total.subtract(BigDecimal.ONE).abs().compareTo(PROBABILITY_SUM_TOLERANCE) > 0) {
+            throw new JevInvalidResponseException(axis + " 확률 분포의 합이 1에 가깝지 않습니다.");
         }
         return copy;
     }

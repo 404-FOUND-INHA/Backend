@@ -108,6 +108,18 @@ class JevResultMapperTest {
     }
 
     @Test
+    @DisplayName("확률 합계가 1에서 ±0.05 를 넘게 벗어나면 거부한다(전부 0 인 분포 포함)")
+    void validatesProbabilitySum() {
+        assertInvalid(response(answer("2", "0.5", probabilities("0", "0", "0", "0", "0")), valid()), "합");
+        assertInvalid(response(answer("2", "0.5", probabilities("0.5", "0.4")), valid()), "합");
+        assertInvalid(response(answer("2", "0.5", probabilities("0.5", "0.56")), valid()), "합");
+        // 반올림 오차 범위는 허용한다
+        assertThat(mapper.map(response(answer("2", "0.5", probabilities("0.5", "0.46")), valid()))).hasSize(2);
+        assertThat(mapper.map(response(answer("2", "0.5", probabilities("0.5", "0.54")), valid()))).hasSize(2);
+        assertThat(mapper.map(response(answer("2", "0.5", probabilities("0.5", "0.5")), valid()))).hasSize(2);
+    }
+
+    @Test
     @DisplayName("점수나 신뢰도가 없거나 답이 점수형이 아니면 거부한다")
     void rejectsMissingValuesAndWrongType() {
         assertInvalid(response(new JevResponse.Answer("score", null, new BigDecimal("0.5"),
