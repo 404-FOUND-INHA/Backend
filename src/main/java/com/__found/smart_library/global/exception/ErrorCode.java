@@ -60,7 +60,8 @@ public enum ErrorCode {
     JEV_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE, "EVAL_002", "JEV 평가 설정(API Key)이 되어 있지 않습니다."),
     JEV_SESSION_NOT_COMPLETED(HttpStatus.CONFLICT, "EVAL_003", "점검이 확정된 회차만 JEV 평가를 요청할 수 있습니다."),
     JEV_EVALUATION_IN_PROGRESS(HttpStatus.CONFLICT, "EVAL_004", "이 회차의 JEV 평가가 이미 진행 중입니다. 끝난 뒤 다시 요청해 주세요."),
-    EVALUATION_SESSION_NOT_COMPLETED(HttpStatus.CONFLICT, "EVAL_005", "점검이 확정된 회차만 종합 평가를 실행할 수 있습니다.");
+    EVALUATION_SESSION_NOT_COMPLETED(HttpStatus.CONFLICT, "EVAL_005", "점검이 확정된 회차만 종합 평가를 실행할 수 있습니다."),
+    EVALUATION_NOT_FOUND(HttpStatus.NOT_FOUND, "EVAL_006", "종합 평가 결과를 찾을 수 없습니다. 종합 평가를 먼저 실행해 주세요.");
 
     private final HttpStatus status;
     private final String code;
