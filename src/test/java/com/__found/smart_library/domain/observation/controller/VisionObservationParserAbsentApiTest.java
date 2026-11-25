@@ -79,6 +79,23 @@ class VisionObservationParserAbsentApiTest extends VisionReceiveTestSupport {
     }
 
     @Test
+    void zeroScoreRequiresReviewEvenWithPartialCopyMark() throws Exception {
+        Fixture fx = fixture(1);
+        Long shelfId = fx.shelfIds().get(0);
+        book("Z", null, shelfId, "NORMAL");
+        book("Z", "c.2", shelfId, "NORMAL");
+        var request = body(fx.sessionId(), shelf(fx.shelfCodes().get(0),
+                Map.of("detectedOrder", 1, "ocrText", "☃☃☃", "partialCopyMark", ".2")));
+
+        assertThat(status(send(request))).isEqualTo(201);
+        assertThat(observations(fx.sessionId())).singleElement().satisfies(row -> {
+            assertThat(row.get("book_id")).isNull();
+            assertThat(row.get("analysis_status")).isEqualTo("REVIEW_REQUIRED");
+            assertThat(row.get("status_reason")).isEqualTo("NO_MATCH");
+        });
+    }
+
+    @Test
     void rawTextBreaksRemainingTiesByBookId() throws Exception {
         Fixture fx = fixture(1);
         Long first = book("T", "c.2", fx.shelfIds().get(0), "NORMAL");

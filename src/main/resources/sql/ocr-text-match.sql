@@ -31,4 +31,5 @@ scored AS (
     CROSS JOIN LATERAL (SELECT normalize(compact, NFD) AS jamos OFFSET 0) AS target
 )
 SELECT * FROM (SELECT * FROM scored ORDER BY score DESC FETCH FIRST 1 ROW WITH TIES) winners
+WHERE score > 0
 ORDER BY book_id
