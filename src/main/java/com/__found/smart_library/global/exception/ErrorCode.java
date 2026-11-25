@@ -52,6 +52,9 @@ public enum ErrorCode {
     REVIEW_NOT_REQUIRED(HttpStatus.CONFLICT, "REVIEW_003", "사서 검토가 필요한 관측이 아닙니다."),
     REVIEW_BOOK_ALREADY_ASSIGNED(HttpStatus.CONFLICT, "REVIEW_004", "같은 회차에서 이미 다른 관측에 확정된 도서입니다."),
 
+    // Missing (소재불명 후보)
+    MISSING_CANDIDATE_NOT_FOUND(HttpStatus.NOT_FOUND, "MISSING_001", "소재불명 후보를 찾을 수 없습니다."),
+
     // Evaluation (도서 평가)
     EVALUATION_INVALID_WEIGHTS(HttpStatus.BAD_REQUEST, "EVAL_001", "평가 가중치 설정이 올바르지 않습니다."),
     JEV_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE, "EVAL_002", "JEV 평가 설정(API Key)이 되어 있지 않습니다."),

@@ -5,6 +5,7 @@ import com.__found.smart_library.domain.audit.repository.AuditLogRepository;
 import com.__found.smart_library.domain.book.entity.Book;
 import com.__found.smart_library.domain.book.entity.LifecycleStatus;
 import com.__found.smart_library.domain.book.repository.BookRepository;
+import com.__found.smart_library.domain.missing.service.MissingCandidateGenerator;
 import com.__found.smart_library.domain.observation.entity.ObservationAnalysisStatus;
 import com.__found.smart_library.domain.review.entity.ReviewFinalStatus;
 import com.__found.smart_library.domain.review.repository.ReviewQueryRepository;
@@ -46,7 +47,7 @@ import org.springframework.transaction.annotation.Transactional;
  *       정상 배치 서가(expected_shelf)는 바꾸지 않아 오배치 도서를 나중에 제자리로 돌려놓을 수 있다.</li>
  *   <li>소재불명(MISSING)이던 도서를 찾았으면 정상(NORMAL)으로 되돌린다. 훼손·제적 상태는 바꾸지 않는다.</li>
  *   <li>식별 불가·제외: 어떤 도서인지 정해지지 않았거나 도서가 아니므로 BOOK 을 바꾸지 않는다.</li>
- *   <li>점검에서 발견되지 않은 도서(소재불명 후보)는 이 확정에서 다루지 않는다.</li>
+ *   <li>점검에서 발견되지 않은 도서는 BOOK 을 바꾸지 않고 소재불명 후보(missing_candidate)로만 만든다.</li>
  * </ul>
  * 바뀐 도서마다 audit_log 에 변경 필드만 남긴다(도서 이력 API 에 그대로 보인다).
  *
@@ -70,6 +71,7 @@ public class ScanFinalizationService {
     private final BookRepository bookRepository;
     private final ShelfRepository shelfRepository;
     private final AuditLogRepository auditLogRepository;
+    private final MissingCandidateGenerator missingCandidateGenerator;
     private final PostgresAdvisoryLock advisoryLock;
     private final Clock clock;
 
@@ -92,7 +94,9 @@ public class ScanFinalizationService {
         Map<Long, Long> shelfByBook = collectFindings(sessionId);
         Reflection reflection = reflectToBooks(shelfByBook, userId);
 
-        session.finalizeBy(userId, LocalDateTime.now(clock));
+        LocalDateTime now = LocalDateTime.now(clock);
+        session.finalizeBy(userId, now);
+        long missingCandidates = missingCandidateGenerator.generate(session, shelfByBook.keySet(), now);
 
         long unidentified = 0;
         long excluded = 0;
@@ -105,7 +109,7 @@ public class ScanFinalizationService {
         }
         return FinalizeResponse.of(session, new FinalizeResponse.Summary(
                 shelfByBook.size(), reflection.locationChanged(), reflection.restoredFromMissing(),
-                unidentified, excluded));
+                unidentified, excluded, missingCandidates));
     }
 
     /**

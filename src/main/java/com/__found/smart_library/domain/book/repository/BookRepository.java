@@ -91,6 +91,19 @@ public interface BookRepository extends JpaRepository<Book, Long>, JpaSpecificat
     List<CopyCount> countCopies(@Param("classificationNos") Collection<String> classificationNos,
                                 @Param("bookSymbols") Collection<String> bookSymbols);
 
+    /**
+     * 소재불명 후보 계산용: 주어진 서가가 정상 배치 서가이면서 점검 대상인 도서(제적·대출 중·분실 처리 제외).
+     */
+    @Query("""
+            select new com.__found.smart_library.domain.book.repository.ExpectedBook(b.id, b.expectedShelf.id)
+            from Book b
+            where b.expectedShelf.id in :shelfIds
+              and b.lifecycleStatus <> com.__found.smart_library.domain.book.entity.LifecycleStatus.DISPOSED
+              and b.loanStatus not in (com.__found.smart_library.domain.book.entity.LoanStatus.ON_LOAN,
+                                       com.__found.smart_library.domain.book.entity.LoanStatus.LOST)
+            """)
+    List<ExpectedBook> findExpectedOnShelves(@Param("shelfIds") Collection<Long> shelfIds);
+
     interface ShelfBookCount {
         Long getShelfId();
 
