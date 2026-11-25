@@ -39,6 +39,14 @@ app:
     # Vision 서버 전용 API Key (32자 이상). 비어 있으면 Vision 결과 수신 API 는 모든 요청을 거부한다.
     # 반드시 .env 의 VISION_API_KEY 로 주입 (코드/커밋에 넣지 말 것)
     api-key: ${VISION_API_KEY:}
+  jev:
+    # JEV(TypeSafe AI System One API) 호출 설정. API Key 가 비어 있으면 JEV 평가 요청은 호출 없이 거부한다.
+    # 반드시 .env 의 JEV_API_KEY 로 주입 (코드/커밋에 넣지 말 것)
+    api-key: ${JEV_API_KEY:}
+    base-url: ${JEV_BASE_URL:https://api.typesafe.ai}
+    model: ${JEV_MODEL:jev-latest}   # 별칭은 가리키는 모델이 바뀔 수 있다. 결과에는 응답의 모델 이름을 저장한다.
+    read-timeout: ${JEV_READ_TIMEOUT:60s}
+    max-attempts: ${JEV_MAX_ATTEMPTS:3}   # 429·529·5xx·시간 초과일 때만 다시 호출(첫 호출 포함)
 
 management:
   endpoints:

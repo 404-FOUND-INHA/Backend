@@ -1,5 +1,6 @@
 package com.__found.smart_library.domain.review.repository;
 
+import com.__found.smart_library.domain.review.entity.ReviewFinalStatus;
 import com.__found.smart_library.domain.observation.entity.ObservationAnalysisStatus;
 import com.__found.smart_library.domain.review.entity.Review;
 import java.util.Optional;
@@ -29,4 +30,13 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
             @Param("sessionId") Long sessionId, @Param("bookId") Long bookId,
             @Param("observationId") Long observationId,
             @Param("resolvedStatuses") Iterable<ObservationAnalysisStatus> resolvedStatuses);
+
+    /** 사서가 도서를 확정(NORMAL·MISPLACED)한 관측의 도서 ID. */
+    @Query("""
+            select distinct r.finalBookId from Review r, BookObservation o
+            where o.id = r.observationId and o.scanSessionId = :sessionId
+              and r.finalBookId is not null and r.finalStatus in :statuses
+            """)
+    java.util.List<Long> findConfirmedBookIds(@Param("sessionId") Long sessionId,
+                                              @Param("statuses") java.util.Collection<ReviewFinalStatus> statuses);
 }

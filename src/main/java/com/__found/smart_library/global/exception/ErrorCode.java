@@ -51,7 +51,9 @@ public enum ErrorCode {
     REVIEW_BOOK_ALREADY_ASSIGNED(HttpStatus.CONFLICT, "REVIEW_004", "같은 회차에서 이미 다른 관측에 확정된 도서입니다."),
 
     // Evaluation (도서 평가)
-    EVALUATION_INVALID_WEIGHTS(HttpStatus.BAD_REQUEST, "EVAL_001", "평가 가중치 설정이 올바르지 않습니다.");
+    EVALUATION_INVALID_WEIGHTS(HttpStatus.BAD_REQUEST, "EVAL_001", "평가 가중치 설정이 올바르지 않습니다."),
+    JEV_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE, "EVAL_002", "JEV 평가 설정(API Key)이 되어 있지 않습니다."),
+    JEV_SESSION_NOT_COMPLETED(HttpStatus.CONFLICT, "EVAL_003", "점검이 확정된 회차만 JEV 평가를 요청할 수 있습니다.");
 
     private final HttpStatus status;
     private final String code;
