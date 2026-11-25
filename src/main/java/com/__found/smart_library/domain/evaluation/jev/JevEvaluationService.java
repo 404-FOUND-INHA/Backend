@@ -4,10 +4,7 @@ import com.__found.smart_library.domain.book.entity.Book;
 import com.__found.smart_library.domain.book.repository.BookRepository;
 import com.__found.smart_library.domain.evaluation.entity.EvaluationType;
 import com.__found.smart_library.domain.evaluation.repository.BookEvaluationRepository;
-import com.__found.smart_library.domain.observation.entity.ObservationAnalysisStatus;
-import com.__found.smart_library.domain.observation.repository.BookObservationRepository;
-import com.__found.smart_library.domain.review.entity.ReviewFinalStatus;
-import com.__found.smart_library.domain.review.repository.ReviewRepository;
+import com.__found.smart_library.domain.evaluation.service.SessionBookResolver;
 import com.__found.smart_library.domain.scan.entity.ScanSession;
 import com.__found.smart_library.domain.scan.entity.ScanSessionStatus;
 import com.__found.smart_library.domain.scan.repository.ScanSessionRepository;
@@ -19,7 +16,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.TreeSet;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -43,19 +39,13 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class JevEvaluationService {
 
-    private static final List<ObservationAnalysisStatus> RESOLVED_OBSERVATIONS =
-            List.of(ObservationAnalysisStatus.NORMAL, ObservationAnalysisStatus.MISPLACED);
-    private static final List<ReviewFinalStatus> CONFIRMED_REVIEWS =
-            List.of(ReviewFinalStatus.NORMAL, ReviewFinalStatus.MISPLACED);
-
     private final JevProperties properties;
     private final JevClient client;
     private final JevRequestFactory requestFactory;
     private final JevResultMapper resultMapper;
     private final JevEvaluationWriter writer;
     private final ScanSessionRepository scanSessionRepository;
-    private final BookObservationRepository observationRepository;
-    private final ReviewRepository reviewRepository;
+    private final SessionBookResolver sessionBookResolver;
     private final BookRepository bookRepository;
     private final BookEvaluationRepository evaluationRepository;
 
@@ -83,8 +73,7 @@ public class JevEvaluationService {
     }
 
     private JevEvaluationResponse evaluateBooks(Long sessionId) {
-        Set<Long> bookIds = new TreeSet<>(observationRepository.findResolvedBookIds(sessionId, RESOLVED_OBSERVATIONS));
-        bookIds.addAll(reviewRepository.findConfirmedBookIds(sessionId, CONFIRMED_REVIEWS));
+        Set<Long> bookIds = sessionBookResolver.findConfirmedBookIds(sessionId);
         if (bookIds.isEmpty()) {
             return new JevEvaluationResponse(0, 0, 0, List.of());
         }

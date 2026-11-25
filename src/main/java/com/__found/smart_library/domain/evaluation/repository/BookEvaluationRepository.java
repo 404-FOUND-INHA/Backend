@@ -17,4 +17,8 @@ public interface BookEvaluationRepository extends JpaRepository<BookEvaluation, 
             """)
     List<Long> findEvaluatedBookIds(@Param("sessionId") Long sessionId, @Param("type") EvaluationType type,
                                     @Param("bookIds") Collection<Long> bookIds);
+
+    /** 이 회차에서 주어진 도서들의 해당 종류 평가(JEV 는 도서당 1건, Backend 종합도 도서당 1건). */
+    List<BookEvaluation> findByScanSessionIdAndEvaluationTypeAndBookIdIn(Long sessionId, EvaluationType type,
+                                                                         Collection<Long> bookIds);
 }
