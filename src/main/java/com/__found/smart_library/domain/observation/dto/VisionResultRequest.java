@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -41,13 +42,15 @@ public record VisionResultRequest(
     ) {
     }
 
-    /** 서가에서 인식한 도서 1권. 라벨이 없거나 비어 있으면 인식 실패(OCR_FAILED)로 저장된다. */
+    /** 서가에서 인식한 도서 1권. ocrText 가 있으면 원문을 검색하고, 없으면 기존 라벨 파서를 사용한다. */
     public record Observation(
             @NotNull @Min(1) @JsonDeserialize(using = StrictJsonInteger.AsInteger.class) Integer detectedOrder,
             @Size(max = 200) String detectedLabelRaw,
             @Size(max = 255) String detectedTitle,
             BigDecimal xPositionCm,
-            LocalDateTime detectedAt
+            LocalDateTime detectedAt,
+            @Size(max = 2048) String ocrText,
+            @Pattern(regexp = "\\.[0-9]{1,29}") String partialCopyMark
     ) {
     }
 }

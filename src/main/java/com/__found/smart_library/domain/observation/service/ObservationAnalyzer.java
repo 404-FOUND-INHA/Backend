@@ -16,25 +16,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
-/**
- * 관측 목록을 파싱 → 매칭 → 판정해 상태를 계산한다(저장은 하지 않는다).
- *
- * <p>건별 판정(위에서부터 먼저 해당하는 것):
- * <ol>
- *   <li>라벨이 없거나 파서가 해석하지 못함 → REVIEW_REQUIRED / OCR_FAILED</li>
- *   <li>완전 일치 도서 없음 → REVIEW_REQUIRED / NO_MATCH (후보 유지)</li>
- *   <li>완전 일치 도서 2권 이상 → REVIEW_REQUIRED / AMBIGUOUS_MATCH (후보 유지)</li>
- *   <li>유일 매칭 + 제적 도서 → REVIEW_REQUIRED / DISPOSED_BOOK</li>
- *   <li>유일 매칭 + 예상 서가 없음 → REVIEW_REQUIRED / NO_EXPECTED_SHELF</li>
- *   <li>유일 매칭 + 예상 서가 = 관측 서가 → NORMAL</li>
- *   <li>유일 매칭 + 예상 서가 ≠ 관측 서가 → MISPLACED / WRONG_SHELF</li>
- * </ol>
- * 회차 전체 규칙: 같은 도서로 유일 매칭된 관측이 둘 이상이면 그 관측 모두 REVIEW_REQUIRED / DUPLICATE_OBSERVATION
- * (이미 DISPOSED_BOOK 이면 그 사유를 유지). 도서가 식별된 경우 book_id·신뢰도는 검토 필요여도 유지한다.
- *
- * <p>파서 구현은 Vision 담당자가 제공한다. 빈이 없으면 성공한 것처럼 처리하지 않고 503 으로 실패시키며,
- * 파서가 던지는 예외는 숨기지 않고 그대로 전파한다(라벨을 해석하지 못한 정상적인 경우만 OCR_FAILED).
- */
+/** OCR 원문 또는 기존 라벨로 도서를 식별한 뒤 서가 위치와 회차 내 중복을 판정한다. */
 @Component
 @RequiredArgsConstructor
 public class ObservationAnalyzer {
@@ -42,10 +24,10 @@ public class ObservationAnalyzer {
     private final ObjectProvider<CallNumberParser> parserProvider;
     private final BookMatcher bookMatcher;
 
-    /** 결과는 입력과 같은 순서다. 매칭 조회는 파싱된 전체를 모아 한 번만 호출한다. */
+    /** 결과는 입력과 같은 순서다. 기존 라벨 요청은 일괄 매칭한다. */
     public List<ObservationAnalysis> analyze(List<AnalysisInput> inputs) {
         CallNumberParser parser = parserProvider.getIfAvailable();
-        if (parser == null) {
+        if (parser == null && (inputs.isEmpty() || inputs.stream().anyMatch(input -> input.ocrText() == null))) {
             throw new BusinessException(ErrorCode.SCAN_PARSER_UNAVAILABLE);
         }
 
@@ -54,6 +36,11 @@ public class ObservationAnalyzer {
         List<MatchRequest> matchRequests = new ArrayList<>();
         for (int i = 0; i < inputs.size(); i++) {
             AnalysisInput input = inputs.get(i);
+            if (input.ocrText() != null) {
+                results[i] = input.ocrText().isBlank() ? ObservationAnalysis.ocrFailed()
+                        : judge(null, bookMatcher.matchText(input.ocrText(), input.partialCopyMark()), input.detectedShelfId());
+                continue;
+            }
             Optional<ParsedCallNumber> parsed = parse(parser, input.detectedLabelRaw());
             if (parsed.isEmpty()) {
                 results[i] = ObservationAnalysis.ocrFailed();

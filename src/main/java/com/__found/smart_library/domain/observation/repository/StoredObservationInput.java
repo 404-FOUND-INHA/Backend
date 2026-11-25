@@ -10,6 +10,8 @@ public record StoredObservationInput(
         String detectedLabelRaw,
         String detectedTitle,
         BigDecimal xPositionCm,
-        LocalDateTime detectedAt
+        LocalDateTime detectedAt,
+        String ocrText,
+        String partialCopyMark
 ) {
 }
