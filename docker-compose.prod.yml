@@ -42,6 +42,12 @@ services:
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?.env 에 CORS_ALLOWED_ORIGINS 를 설정하세요}
       # 선택: 비어 있으면 Vision 결과 수신 API 가 모든 요청을 거부한다 (배포가 실패하지 않는다)
       VISION_API_KEY: ${VISION_API_KEY:-}
+      # 선택: 비어 있으면 JEV 평가 요청이 호출 없이 거부된다 (배포가 실패하지 않는다)
+      JEV_API_KEY: ${JEV_API_KEY:-}
+      JEV_MODEL: ${JEV_MODEL:-jev-latest}
+      JEV_BASE_URL: ${JEV_BASE_URL:-https://api.typesafe.ai}
+      JEV_READ_TIMEOUT: ${JEV_READ_TIMEOUT:-60s}
+      JEV_MAX_ATTEMPTS: ${JEV_MAX_ATTEMPTS:-3}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       # 주의: spring.profiles.active=dev 를 넣지 않는다. 넣으면 시드 계정이 운영 DB 에 들어간다.
     depends_on:

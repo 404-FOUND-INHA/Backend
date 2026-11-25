@@ -56,7 +56,10 @@ public enum ErrorCode {
     MISSING_CANDIDATE_NOT_FOUND(HttpStatus.NOT_FOUND, "MISSING_001", "소재불명 후보를 찾을 수 없습니다."),
 
     // Evaluation (도서 평가)
-    EVALUATION_INVALID_WEIGHTS(HttpStatus.BAD_REQUEST, "EVAL_001", "평가 가중치 설정이 올바르지 않습니다.");
+    EVALUATION_INVALID_WEIGHTS(HttpStatus.BAD_REQUEST, "EVAL_001", "평가 가중치 설정이 올바르지 않습니다."),
+    JEV_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE, "EVAL_002", "JEV 평가 설정(API Key)이 되어 있지 않습니다."),
+    JEV_SESSION_NOT_COMPLETED(HttpStatus.CONFLICT, "EVAL_003", "점검이 확정된 회차만 JEV 평가를 요청할 수 있습니다."),
+    JEV_EVALUATION_IN_PROGRESS(HttpStatus.CONFLICT, "EVAL_004", "이 회차의 JEV 평가가 이미 진행 중입니다. 끝난 뒤 다시 요청해 주세요.");
 
     private final HttpStatus status;
     private final String code;
