@@ -68,6 +68,42 @@ public interface BookRepository extends JpaRepository<Book, Long>, JpaSpecificat
             """)
     List<BookMatchInfo> findMatchInfosByClassificationNo(@Param("classificationNos") Collection<String> classificationNos);
 
+    /** 평가 지표 계산용: 도서의 대출 요약과 청구기호. */
+    @Query("""
+            select new com.__found.smart_library.domain.book.repository.BookMetricSource(
+                b.id, b.totalLoanCount, b.lastLoanDate, b.classificationNo, b.bookSymbol)
+            from Book b where b.id in :bookIds
+            """)
+    List<BookMetricSource> findMetricSources(@Param("bookIds") Collection<Long> bookIds);
+
+    /**
+     * 평가 지표 계산용: 청구기호별 복본 수(제적 제외). 분류기호와 도서기호를 각각 IN 으로 거르므로
+     * 요청하지 않은 조합도 섞여 나올 수 있어 호출 측에서 필요한 쌍만 고른다.
+     */
+    @Query("""
+            select new com.__found.smart_library.domain.book.repository.CopyCount(
+                b.classificationNo, b.bookSymbol, count(b))
+            from Book b
+            where b.classificationNo in :classificationNos and b.bookSymbol in :bookSymbols
+              and b.lifecycleStatus <> com.__found.smart_library.domain.book.entity.LifecycleStatus.DISPOSED
+            group by b.classificationNo, b.bookSymbol
+            """)
+    List<CopyCount> countCopies(@Param("classificationNos") Collection<String> classificationNos,
+                                @Param("bookSymbols") Collection<String> bookSymbols);
+
+    /**
+     * 소재불명 후보 계산용: 주어진 서가가 정상 배치 서가이면서 점검 대상인 도서(제적·대출 중·분실 처리 제외).
+     */
+    @Query("""
+            select new com.__found.smart_library.domain.book.repository.ExpectedBook(b.id, b.expectedShelf.id)
+            from Book b
+            where b.expectedShelf.id in :shelfIds
+              and b.lifecycleStatus <> com.__found.smart_library.domain.book.entity.LifecycleStatus.DISPOSED
+              and b.loanStatus not in (com.__found.smart_library.domain.book.entity.LoanStatus.ON_LOAN,
+                                       com.__found.smart_library.domain.book.entity.LoanStatus.LOST)
+            """)
+    List<ExpectedBook> findExpectedOnShelves(@Param("shelfIds") Collection<Long> shelfIds);
+
     interface ShelfBookCount {
         Long getShelfId();
 

@@ -33,4 +33,12 @@ public interface BookObservationRepository extends JpaRepository<BookObservation
 
         long getTotal();
     }
+
+    /** 자동 분석으로 도서가 확정된(NORMAL·MISPLACED) 관측의 도서 ID. 같은 도서가 여러 번 나와도 한 번만 돌려준다. */
+    @Query("""
+            select distinct o.bookId from BookObservation o
+            where o.scanSessionId = :sessionId and o.bookId is not null and o.analysisStatus in :statuses
+            """)
+    List<Long> findResolvedBookIds(@Param("sessionId") Long sessionId,
+                                   @Param("statuses") java.util.Collection<ObservationAnalysisStatus> statuses);
 }

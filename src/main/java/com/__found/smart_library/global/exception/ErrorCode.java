@@ -43,6 +43,8 @@ public enum ErrorCode {
     SCAN_RESULT_NOT_RECEIVABLE(HttpStatus.CONFLICT, "SCAN_006", "결과를 수신할 수 없는 회차 상태입니다."),
     SCAN_SHELF_NOT_IN_SESSION(HttpStatus.NOT_FOUND, "SCAN_007", "해당 회차의 점검 대상 서가가 아닙니다."),
     SCAN_OBSERVATION_NOT_FOUND(HttpStatus.NOT_FOUND, "SCAN_008", "해당 회차의 관측 도서를 찾을 수 없습니다."),
+    SCAN_SESSION_NOT_FINALIZABLE(HttpStatus.CONFLICT, "SCAN_009", "확정할 수 있는 회차 상태가 아닙니다."),
+    SCAN_REVIEW_INCOMPLETE(HttpStatus.CONFLICT, "SCAN_010", "검토가 끝나지 않은 관측이 있어 확정할 수 없습니다."),
 
     // Review (사서 검토)
     REVIEW_NOT_FOUND(HttpStatus.NOT_FOUND, "REVIEW_001", "검토 기록을 찾을 수 없습니다."),
@@ -50,8 +52,16 @@ public enum ErrorCode {
     REVIEW_NOT_REQUIRED(HttpStatus.CONFLICT, "REVIEW_003", "사서 검토가 필요한 관측이 아닙니다."),
     REVIEW_BOOK_ALREADY_ASSIGNED(HttpStatus.CONFLICT, "REVIEW_004", "같은 회차에서 이미 다른 관측에 확정된 도서입니다."),
 
+    // Missing (소재불명 후보)
+    MISSING_CANDIDATE_NOT_FOUND(HttpStatus.NOT_FOUND, "MISSING_001", "소재불명 후보를 찾을 수 없습니다."),
+
     // Evaluation (도서 평가)
-    EVALUATION_INVALID_WEIGHTS(HttpStatus.BAD_REQUEST, "EVAL_001", "평가 가중치 설정이 올바르지 않습니다.");
+    EVALUATION_INVALID_WEIGHTS(HttpStatus.BAD_REQUEST, "EVAL_001", "평가 가중치 설정이 올바르지 않습니다."),
+    JEV_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE, "EVAL_002", "JEV 평가 설정(API Key)이 되어 있지 않습니다."),
+    JEV_SESSION_NOT_COMPLETED(HttpStatus.CONFLICT, "EVAL_003", "점검이 확정된 회차만 JEV 평가를 요청할 수 있습니다."),
+    JEV_EVALUATION_IN_PROGRESS(HttpStatus.CONFLICT, "EVAL_004", "이 회차의 JEV 평가가 이미 진행 중입니다. 끝난 뒤 다시 요청해 주세요."),
+    EVALUATION_SESSION_NOT_COMPLETED(HttpStatus.CONFLICT, "EVAL_005", "점검이 확정된 회차만 종합 평가를 실행할 수 있습니다."),
+    EVALUATION_NOT_FOUND(HttpStatus.NOT_FOUND, "EVAL_006", "종합 평가 결과를 찾을 수 없습니다. 종합 평가를 먼저 실행해 주세요.");
 
     private final HttpStatus status;
     private final String code;

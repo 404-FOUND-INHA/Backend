@@ -34,4 +34,28 @@ public interface ScanSessionShelfRepository extends JpaRepository<ScanSessionShe
             where ss.id.scanSessionId = :scanSessionId
             """)
     List<Shelf> findShelvesByScanSessionId(@Param("scanSessionId") Long scanSessionId);
+
+    /** 결과 수신까지 끝난(실제로 점검된) 회차의 서가 ID. */
+    @Query("""
+            select ss.id.shelfId from ScanSessionShelf ss
+            where ss.id.scanSessionId = :scanSessionId
+              and ss.scanStatus = com.__found.smart_library.domain.scan.entity.ScanShelfStatus.RESULT_RECEIVED
+            """)
+    List<Long> findCheckedShelfIds(@Param("scanSessionId") Long scanSessionId);
+
+    /**
+     * 주어진 서가를 점검한 확정(COMPLETED) 회차들. 기준 시각 이전에 확정된 회차만 돌려주며,
+     * 서가별로 가장 최근 회차는 호출 측에서 고른다.
+     */
+    @Query("""
+            select new com.__found.smart_library.domain.scan.repository.ShelfCheck(ss.id.shelfId, s.id, s.finalizedAt)
+            from ScanSessionShelf ss join ScanSession s on s.id = ss.id.scanSessionId
+            where ss.id.shelfId in :shelfIds
+              and ss.scanStatus = com.__found.smart_library.domain.scan.entity.ScanShelfStatus.RESULT_RECEIVED
+              and s.status = com.__found.smart_library.domain.scan.entity.ScanSessionStatus.COMPLETED
+              and s.id <> :excludeSessionId and s.finalizedAt < :before
+            """)
+    List<ShelfCheck> findCompletedChecks(@Param("shelfIds") Collection<Long> shelfIds,
+                                         @Param("excludeSessionId") Long excludeSessionId,
+                                         @Param("before") java.time.LocalDateTime before);
 }
